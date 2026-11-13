@@ -1,0 +1,3 @@
+key.categories.pathtrace=PathTrace
+key.pathtrace.toggle=Toggle path tracing
+key.pathtrace.reload=Reload path tracing shaders

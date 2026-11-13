@@ -1,0 +1,70 @@
+package com.pathtrace;
+
+import net.minecraftforge.common.config.Config;
+
+/**
+ * Editable in-game via Mods > PathTrace > Config, or in config/pathtrace.cfg.
+ */
+@Config(modid = PathTraceMod.MODID, name = PathTraceMod.MODID)
+public class PTConfig {
+
+    @Config.Comment("Indirect light bounces per sample. 0 = direct light only, 1 = good default, 2-3 = brighter interiors, slower.")
+    @Config.RangeInt(min = 0, max = 3)
+    public static int bounces = 1;
+
+    @Config.Comment("Fraction of screen resolution the path tracer runs at; the result is upscaled edge-aware. 0.5 is the sweet spot.")
+    @Config.RangeDouble(min = 0.25, max = 1.0)
+    public static double renderScale = 0.5;
+
+    @Config.Comment("Frames averaged for bounce/sky light. Higher = smoother, slower to react to changes.")
+    @Config.RangeInt(min = 1, max = 256)
+    public static int maxAccumulation = 32;
+
+    @Config.Comment("Frames averaged for direct light (sun, torches, dynamic lights). Keep low so moving lights stay snappy.")
+    @Config.RangeInt(min = 1, max = 64)
+    public static int maxAccumulationDirect = 8;
+
+    @Config.Comment("Edge-aware wavelet denoiser.")
+    public static boolean denoise = true;
+
+    @Config.Comment("Brightness multiplier (applied on top of auto exposure).")
+    @Config.RangeDouble(min = 0.1, max = 8.0)
+    public static double exposure = 1.0;
+
+    @Config.Comment("Adapt brightness like an eye: brighter in caves, calmer in daylight.")
+    public static boolean autoExposure = true;
+
+    @Config.Comment("Colour saturation of the final image.")
+    @Config.RangeDouble(min = 0.0, max = 2.0)
+    public static double saturation = 1.1;
+
+    @Config.Comment("Sunlight strength.")
+    @Config.RangeDouble(min = 0.0, max = 10.0)
+    public static double sunStrength = 2.6;
+
+    @Config.Comment("Sky light strength.")
+    @Config.RangeDouble(min = 0.0, max = 10.0)
+    public static double skyStrength = 1.4;
+
+    @Config.Comment("Glow of light-emitting blocks seen directly or via bounces.")
+    @Config.RangeDouble(min = 0.0, max = 50.0)
+    public static double emissiveStrength = 4.0;
+
+    @Config.Comment("Strength of light cast by torches, glowstone, lava, held/dropped items etc.")
+    @Config.RangeDouble(min = 0.0, max = 50.0)
+    public static double pointLightStrength = 6.0;
+
+    @Config.Comment("Light from held items, dropped items, burning mobs, blazes and fireballs.")
+    public static boolean dynamicLights = true;
+
+    @Config.Comment("Light the first-person hand and held item with the path traced lighting.")
+    public static boolean litHand = true;
+
+    @Config.Comment("Voxel slices re-scanned per frame as a background safety net (block changes are picked up instantly anyway).")
+    @Config.RangeInt(min = 0, max = 32)
+    public static int refreshSlicesPerFrame = 1;
+
+    @Config.Comment("Voxel slices scanned per frame when the volume has to be rebuilt (after moving far or changing worlds).")
+    @Config.RangeInt(min = 1, max = 128)
+    public static int rebuildSlicesPerFrame = 24;
+}

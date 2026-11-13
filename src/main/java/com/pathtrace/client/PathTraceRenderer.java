@@ -1,0 +1,581 @@
+package com.pathtrace.client;
+
+import com.pathtrace.PTConfig;
+import com.pathtrace.PathTraceMod;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.EntityRenderer;
+import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.OpenGlHelper;
+import net.minecraft.client.shader.Framebuffer;
+import net.minecraft.entity.Entity;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.DimensionType;
+import net.minecraft.world.World;
+import net.minecraftforge.fml.relauncher.ReflectionHelper;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL13;
+import org.lwjgl.opengl.GL14;
+import org.lwjgl.opengl.GL20;
+import org.lwjgl.opengl.GL30;
+import org.lwjgl.util.vector.Matrix4f;
+import org.lwjgl.util.vector.Vector4f;
+
+import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
+
+/**
+ * Frame pipeline (after the world is drawn, in RenderWorldLastEvent):
+ * <ol>
+ *   <li>copy the frame's colour (fullbright = albedo) and depth</li>
+ *   <li>probe: trace a small sphere of rays from the eye (used to light the hand)</li>
+ *   <li>trace: per pixel, sun + point lights (direct) and diffuse bounces (indirect), at reduced resolution,
+ *       blended with the reprojected history</li>
+ *   <li>denoise: 4 a-trous wavelet passes (indirect), 2 for direct</li>
+ *   <li>auto exposure: average log luminance, smoothed over time</li>
+ *   <li>composite: edge-aware upsample, multiply by albedo, tonemap</li>
+ * </ol>
+ * Then, in RenderHandEvent, the hand is drawn by us (fullbright) and relit with the probe.
+ */
+final class PathTraceRenderer {
+    private static final String VSH = "quad.vsh";
+
+    private final VoxelVolume volume = new VoxelVolume();
+    private final LightCollector lights = new LightCollector();
+
+    private ShaderProgram traceSh, atrousSh, compositeSh, probeSh, handSh, lumSh, exposureSh;
+    private boolean shaderFailed;
+
+    private int width = -1, height = -1, traceW = -1, traceH = -1;
+    private int sceneTex = -1, depthTex = -1;
+    private final RenderTarget[] accum = new RenderTarget[2];
+    private final RenderTarget[] filt = new RenderTarget[2];
+    private final RenderTarget[] probe = new RenderTarget[2];
+    private final RenderTarget[] expo = new RenderTarget[2];
+    private RenderTarget lum;
+    private int cur;
+    private int frame;
+    private boolean hasHistory;
+    private long lastNanos;
+
+    private boolean frameReady;
+    private int lastProbeTex, lastExposureTex;
+
+    private final FloatBuffer proj = BufferUtils.createFloatBuffer(16);
+    private final FloatBuffer view = BufferUtils.createFloatBuffer(16);
+    private final FloatBuffer invProj = BufferUtils.createFloatBuffer(16);
+    private final FloatBuffer invView = BufferUtils.createFloatBuffer(16);
+    private final FloatBuffer prevProj = BufferUtils.createFloatBuffer(16);
+    private final FloatBuffer prevView = BufferUtils.createFloatBuffer(16);
+    private final FloatBuffer handProj = BufferUtils.createFloatBuffer(16);
+    private final FloatBuffer handInvProj = BufferUtils.createFloatBuffer(16);
+    private final Matrix4f tmp = new Matrix4f();
+    private final Matrix4f tmpInv = new Matrix4f();
+
+    private double prevX, prevY, prevZ;
+    private final float[] prevEyeRel = new float[3];
+    private final float[] camV = new float[3];
+    private final float[] eyeV = new float[3];
+
+    private final float[] lightDir = new float[3];
+    private final float[] lightColor = new float[3];
+    private final float[] skyColor = new float[3];
+    private final float[] ambient = new float[3];
+
+    private Method renderHandMethod;
+    private boolean handFailed;
+
+    VoxelVolume volume() {
+        return volume;
+    }
+
+    boolean isReady() {
+        return traceSh != null && volume.isValid() && OpenGlHelper.isFramebufferEnabled();
+    }
+
+    void onWorldChange() {
+        volume.invalidate();
+        hasHistory = false;
+    }
+
+    void resetHistory() {
+        hasHistory = false;
+    }
+
+    void reloadShaders() {
+        deleteShaders();
+        shaderFailed = false;
+        hasHistory = false;
+    }
+
+    // ================================================================== world pass
+
+    void render(float pt) {
+        frameReady = false;
+        Minecraft mc = Minecraft.getMinecraft();
+        World world = mc.world;
+        Entity cam = mc.getRenderViewEntity();
+        if (world == null || cam == null || !OpenGlHelper.isFramebufferEnabled()) return;
+        if (!ensureShaders()) return;
+
+        double cx = cam.lastTickPosX + (cam.posX - cam.lastTickPosX) * pt;
+        double cy = cam.lastTickPosY + (cam.posY - cam.lastTickPosY) * pt;
+        double cz = cam.lastTickPosZ + (cam.posZ - cam.lastTickPosZ) * pt;
+
+        volume.update(world, cx, cy, cz);
+        if (!volume.isValid()) {
+            hasHistory = false;
+            return;
+        }
+
+        Framebuffer fb = mc.getFramebuffer();
+        ensureTargets(fb.framebufferWidth, fb.framebufferHeight);
+
+        readMatrix(GL11.GL_PROJECTION_MATRIX, proj);
+        readMatrix(GL11.GL_MODELVIEW_MATRIX, view);
+        if (!invert(proj, invProj) || !invert(view, invView)) return;
+        Vector4f eye = Matrix4f.transform(tmpInv, new Vector4f(0f, 0f, 0f, 1f), null); // tmpInv = inverse(view)
+
+        int ox = volume.originX(), oy = volume.originY(), oz = volume.originZ();
+        camV[0] = (float) (cx - ox); camV[1] = (float) (cy - oy); camV[2] = (float) (cz - oz);
+        eyeV[0] = camV[0] + eye.x; eyeV[1] = camV[1] + eye.y; eyeV[2] = camV[2] + eye.z;
+        if (!hasHistory) {
+            copy(proj, prevProj);
+            copy(view, prevView);
+            prevX = cx; prevY = cy; prevZ = cz;
+            prevEyeRel[0] = eye.x; prevEyeRel[1] = eye.y; prevEyeRel[2] = eye.z;
+        }
+        float pcx = (float) (prevX - ox), pcy = (float) (prevY - oy), pcz = (float) (prevZ - oz);
+
+        long now = System.nanoTime();
+        float dt = lastNanos == 0 ? 0.016f : MathHelper.clamp((now - lastNanos) / 1.0e9f, 0f, 0.25f);
+        lastNanos = now;
+
+        lights.collect(world, cam, pt, volume, cx, cy, cz, mc.gameSettings.thirdPersonView == 0);
+        computeLighting(world, cam, pt);
+
+        // 1. grab colour + depth of the frame vanilla just drew
+        fb.bindFramebuffer(false);
+        bind2D(0, sceneTex);
+        GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, 0, 0, width, height);
+        bind2D(0, depthTex);
+        GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, 0, 0, width, height);
+
+        beginFullscreen();
+        int prev = 1 - cur;
+
+        // 2. eye probe
+        probe[cur].bind();
+        probeSh.use();
+        setCommon(probeSh);
+        bind2D(2, probe[prev].tex[0]);
+        probeSh.set("prevProbe", 2);
+        probeSh.set("eyePos", eyeV);
+        probeSh.set("hasHistory", hasHistory ? 1f : 0f);
+        drawQuad();
+
+        // 3. trace
+        accum[cur].bind();
+        traceSh.use();
+        setCommon(traceSh);
+        bind2D(0, depthTex);
+        bind2D(2, accum[prev].tex[0]);
+        bind2D(3, accum[prev].tex[1]);
+        bind2D(4, accum[prev].tex[2]);
+        traceSh.set("depthTex", 0);
+        traceSh.set("histIndirect", 2);
+        traceSh.set("histDirect", 3);
+        traceSh.set("histGeom", 4);
+        traceSh.setMatrix("invProj", invProj);
+        traceSh.setMatrix("invView", invView);
+        traceSh.setMatrix("prevProj", prevProj);
+        traceSh.setMatrix("prevView", prevView);
+        traceSh.set("prevCamPos", pcx, pcy, pcz);
+        traceSh.set("prevEye", pcx + prevEyeRel[0], pcy + prevEyeRel[1], pcz + prevEyeRel[2]);
+        traceSh.set("hasHistory", hasHistory ? 1f : 0f);
+        traceSh.set("maxAccumIndirect", (float) PTConfig.maxAccumulation);
+        traceSh.set("maxAccumDirect", (float) PTConfig.maxAccumulationDirect);
+        traceSh.set("bounces", PTConfig.bounces);
+        traceSh.set("depthTexel", 1f / width, 1f / height);
+        traceSh.set("traceRes", (float) traceW, (float) traceH);
+        drawQuad();
+
+        // 4. denoise
+        int indTex = accum[cur].tex[0], dirTex = accum[cur].tex[1], geomTex = accum[cur].tex[2];
+        if (PTConfig.denoise) {
+            atrousSh.use();
+            atrousSh.set("inIndirect", 2);
+            atrousSh.set("inDirect", 3);
+            atrousSh.set("geomTex", 4);
+            atrousSh.set("texel", 1f / traceW, 1f / traceH);
+            bind2D(4, geomTex);
+            for (int it = 0; it < 4; it++) {
+                RenderTarget dst = filt[it & 1];
+                dst.bind();
+                bind2D(2, indTex);
+                bind2D(3, dirTex);
+                atrousSh.set("stepSize", (float) (1 << it));
+                atrousSh.set("filterDirect", it < 2 ? 1f : 0f);
+                drawQuad();
+                indTex = dst.tex[0];
+                dirTex = dst.tex[1];
+            }
+        }
+
+        // 5. auto exposure
+        int expTex = 0;
+        if (PTConfig.autoExposure) {
+            lum.bind();
+            lumSh.use();
+            bind2D(0, sceneTex);
+            bind2D(2, indTex);
+            bind2D(3, dirTex);
+            bind2D(4, depthTex);
+            lumSh.set("sceneTex", 0);
+            lumSh.set("indirectTex", 2);
+            lumSh.set("directTex", 3);
+            lumSh.set("depthTex", 4);
+            drawQuad();
+            bind2D(2, lum.tex[0]);
+            GL30.glGenerateMipmap(GL11.GL_TEXTURE_2D);
+
+            expo[cur].bind();
+            exposureSh.use();
+            bind2D(3, expo[prev].tex[0]);
+            exposureSh.set("lumTex", 2);
+            exposureSh.set("prevExposure", 3);
+            exposureSh.set("adapt", 1f - (float) Math.exp(-dt * 1.5f));
+            exposureSh.set("hasHistory", hasHistory ? 1f : 0f);
+            drawQuad();
+            expTex = expo[cur].tex[0];
+        }
+
+        // 6. composite into Minecraft's framebuffer
+        fb.bindFramebuffer(true);
+        compositeSh.use();
+        bind2D(0, sceneTex);
+        bind2D(2, indTex);
+        bind2D(3, dirTex);
+        bind2D(4, geomTex);
+        bind2D(5, depthTex);
+        bind2D(6, expTex);
+        compositeSh.set("sceneTex", 0);
+        compositeSh.set("indirectTex", 2);
+        compositeSh.set("directTex", 3);
+        compositeSh.set("geomTex", 4);
+        compositeSh.set("depthTex", 5);
+        compositeSh.set("exposureTex", 6);
+        compositeSh.setMatrix("invProj", invProj);
+        compositeSh.set("lowRes", (float) traceW, (float) traceH);
+        setGrading(compositeSh);
+        drawQuad();
+
+        endFullscreen();
+
+        lastProbeTex = probe[cur].tex[0];
+        lastExposureTex = expTex;
+        copy(proj, prevProj);
+        copy(view, prevView);
+        prevX = cx; prevY = cy; prevZ = cz;
+        prevEyeRel[0] = eye.x; prevEyeRel[1] = eye.y; prevEyeRel[2] = eye.z;
+        hasHistory = true;
+        cur = prev;
+        frame++;
+        frameReady = true;
+    }
+
+    // ================================================================== hand pass
+
+    /** Draws the first-person hand ourselves and relights it. Returns true if vanilla should skip its hand. */
+    boolean renderHand(float pt, int pass) {
+        if (!frameReady || handFailed || !PTConfig.litHand) return false;
+        frameReady = false;
+        Minecraft mc = Minecraft.getMinecraft();
+        if (renderHandMethod == null) {
+            try {
+                renderHandMethod = ReflectionHelper.findMethod(EntityRenderer.class, "renderHand", "func_78476_b",
+                        float.class, int.class);
+            } catch (Throwable t) {
+                handFailed = true;
+                PathTraceMod.LOG.warn("PathTrace: can't hook hand rendering, hand stays unlit", t);
+                return false;
+            }
+        }
+
+        GlStateManager.clear(GL11.GL_DEPTH_BUFFER_BIT);
+        try {
+            renderHandMethod.invoke(mc.entityRenderer, pt, pass);
+        } catch (Throwable t) {
+            handFailed = true;
+            PathTraceMod.LOG.warn("PathTrace: hand rendering failed, hand stays unlit", t);
+            return true;
+        }
+
+        readMatrix(GL11.GL_PROJECTION_MATRIX, handProj);
+        if (!invert(handProj, handInvProj)) return true;
+
+        Framebuffer fb = mc.getFramebuffer();
+        fb.bindFramebuffer(false);
+        bind2D(0, sceneTex);
+        GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, 0, 0, width, height);
+        bind2D(0, depthTex);
+        GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, 0, 0, width, height);
+
+        beginFullscreen();
+        fb.bindFramebuffer(true);
+        handSh.use();
+        setCommon(handSh);
+        bind2D(0, sceneTex);
+        bind2D(2, depthTex);
+        bind2D(3, lastProbeTex);
+        bind2D(4, lastExposureTex);
+        handSh.set("handColor", 0);
+        handSh.set("handDepth", 2);
+        handSh.set("probeTex", 3);
+        handSh.set("exposureTex", 4);
+        handSh.setMatrix("handInvProj", handInvProj);
+        handSh.setMatrix("invView", invView);
+        handSh.set("eyePos", eyeV);
+        handSh.set("texel", 1f / width, 1f / height);
+        setGrading(handSh);
+        drawQuad();
+        endFullscreen();
+        return true;
+    }
+
+    // ================================================================== uniforms
+
+    private void setCommon(ShaderProgram s) {
+        bind2D(5, volume.heightTexture());
+        bind3D(6, volume.texture());
+        bind3D(7, volume.coarseTexture());
+        s.set("heightTex", 5);
+        s.set("voxelTex", 6);
+        s.set("coarseTex", 7);
+        s.set("volumeSize", (float) VoxelVolume.N);
+        s.set("originY", (float) volume.originY());
+        s.set("camPos", camV);
+        s.set("lightDir", lightDir);
+        s.set("lightColor", lightColor);
+        s.set("skyColor", skyColor);
+        s.set("ambient", ambient);
+        s.set("emissiveStrength", (float) PTConfig.emissiveStrength);
+        s.set("frame", (float) (frame % 1024));
+        s.setVec4Array("ptLightPos", lights.pos);
+        s.setVec4Array("ptLightCol", lights.col);
+        s.set("ptLightCount", lights.count);
+        s.set("neeRadius", lights.neeRadius);
+    }
+
+    private void setGrading(ShaderProgram s) {
+        s.set("exposure", (float) PTConfig.exposure);
+        s.set("autoExposure", PTConfig.autoExposure ? 1f : 0f);
+        s.set("saturation", (float) PTConfig.saturation);
+    }
+
+    private void computeLighting(World world, Entity cam, float pt) {
+        float sky = (float) PTConfig.skyStrength;
+        if (!world.provider.isSurfaceWorld()) {
+            set(lightDir, 0f, 1f, 0f);
+            set(lightColor, 0f, 0f, 0f);
+            if (world.provider.getDimensionType() == DimensionType.NETHER) {
+                set(skyColor, 0.20f * sky, 0.09f * sky, 0.05f * sky);
+                set(ambient, 0.10f, 0.05f, 0.03f);
+            } else {
+                set(skyColor, 0.10f * sky, 0.08f * sky, 0.14f * sky);
+                set(ambient, 0.05f, 0.04f, 0.07f);
+            }
+            return;
+        }
+
+        float ang = world.getCelestialAngleRadians(pt);
+        float x = -MathHelper.sin(ang), y = MathHelper.cos(ang), z = 0.3f;
+        float len = MathHelper.sqrt(x * x + y * y + z * z);
+        x /= len; y /= len; z /= len;
+
+        float sun = (float) PTConfig.sunStrength;
+        float r, g, b, k;
+        if (y > -0.1f) {
+            k = smooth(-0.1f, 0.15f, y) * sun;
+            float warm = smooth(0.0f, 0.45f, y);
+            r = 1.0f;
+            g = lerp(0.55f, 0.94f, warm);
+            b = lerp(0.30f, 0.85f, warm);
+        } else {               // sun is down: use the moon, which is opposite
+            x = -x; y = -y; z = -z;
+            k = smooth(0.1f, 0.3f, y) * 0.08f * sun;
+            r = 0.45f; g = 0.55f; b = 0.80f;
+        }
+        float weather = (1f - 0.8f * world.getRainStrength(pt)) * (1f - 0.5f * world.getThunderStrength(pt));
+        k *= weather;
+        set(lightDir, x, y, z);
+        set(lightColor, r * k, g * k, b * k);
+
+        Vec3d s = world.getSkyColor(cam, pt);
+        set(skyColor,
+                (float) Math.pow(Math.max(0, s.x), 2.2) * sky + 0.004f,
+                (float) Math.pow(Math.max(0, s.y), 2.2) * sky + 0.005f,
+                (float) Math.pow(Math.max(0, s.z), 2.2) * sky + 0.008f);
+        set(ambient, 0.002f, 0.002f, 0.003f);
+    }
+
+    private static void set(float[] a, float x, float y, float z) {
+        a[0] = x; a[1] = y; a[2] = z;
+    }
+
+    private static float smooth(float e0, float e1, float v) {
+        float t = MathHelper.clamp((v - e0) / (e1 - e0), 0f, 1f);
+        return t * t * (3f - 2f * t);
+    }
+
+    private static float lerp(float a, float b, float t) {
+        return a + (b - a) * t;
+    }
+
+    // ================================================================== GL plumbing
+
+    private boolean ensureShaders() {
+        if (traceSh != null) return true;
+        if (shaderFailed) return false;
+        try {
+            traceSh = ShaderProgram.load(VSH, "trace.fsh");
+            atrousSh = ShaderProgram.load(VSH, "atrous.fsh");
+            compositeSh = ShaderProgram.load(VSH, "composite.fsh");
+            probeSh = ShaderProgram.load(VSH, "probe.fsh");
+            handSh = ShaderProgram.load(VSH, "hand.fsh");
+            lumSh = ShaderProgram.load(VSH, "lum.fsh");
+            exposureSh = ShaderProgram.load(VSH, "exposure.fsh");
+            return true;
+        } catch (Exception e) {
+            PathTraceMod.LOG.error("PathTrace shaders failed to load", e);
+            deleteShaders();
+            shaderFailed = true;
+            ClientHandler.chat("§cPathTrace: shader error, see latest.log");
+            return false;
+        }
+    }
+
+    private void deleteShaders() {
+        for (ShaderProgram s : new ShaderProgram[]{traceSh, atrousSh, compositeSh, probeSh, handSh, lumSh, exposureSh}) {
+            if (s != null) s.delete();
+        }
+        traceSh = atrousSh = compositeSh = probeSh = handSh = lumSh = exposureSh = null;
+    }
+
+    private void ensureTargets(int w, int h) {
+        double scale = MathHelper.clamp(PTConfig.renderScale, 0.25, 1.0);
+        int tw = Math.max(1, (int) (w * scale));
+        int th = Math.max(1, (int) (h * scale));
+        if (w == width && h == height && tw == traceW && th == traceH && sceneTex != -1) return;
+        deleteTargets();
+        width = w; height = h; traceW = tw; traceH = th;
+
+        sceneTex = makeTex(GL11.GL_RGBA8, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, w, h);
+        depthTex = makeTex(GL14.GL_DEPTH_COMPONENT24, GL11.GL_DEPTH_COMPONENT, GL11.GL_UNSIGNED_INT, w, h);
+        for (int i = 0; i < 2; i++) {
+            accum[i] = new RenderTarget(tw, th, 3, GL11.GL_NEAREST);   // indirect, direct, geometry
+            filt[i] = new RenderTarget(tw, th, 2, GL11.GL_NEAREST);    // indirect, direct
+            probe[i] = new RenderTarget(8, 9, 1, GL11.GL_NEAREST);     // 64 directions + sun visibility row
+            expo[i] = new RenderTarget(1, 1, 1, GL11.GL_NEAREST);
+        }
+        lum = new RenderTarget(64, 64, 1, GL11.GL_NEAREST_MIPMAP_NEAREST);
+        bind2D(0, lum.tex[0]);
+        GL30.glGenerateMipmap(GL11.GL_TEXTURE_2D);
+        hasHistory = false;
+        Minecraft.getMinecraft().getFramebuffer().bindFramebuffer(false);
+    }
+
+    private void deleteTargets() {
+        if (sceneTex != -1) GlStateManager.deleteTexture(sceneTex);
+        if (depthTex != -1) GlStateManager.deleteTexture(depthTex);
+        sceneTex = depthTex = -1;
+        for (int i = 0; i < 2; i++) {
+            if (accum[i] != null) accum[i].delete();
+            if (filt[i] != null) filt[i].delete();
+            if (probe[i] != null) probe[i].delete();
+            if (expo[i] != null) expo[i].delete();
+            accum[i] = filt[i] = probe[i] = expo[i] = null;
+        }
+        if (lum != null) lum.delete();
+        lum = null;
+    }
+
+    private static int makeTex(int internal, int format, int type, int w, int h) {
+        int id = GlStateManager.generateTexture();
+        GlStateManager.bindTexture(id);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, internal, w, h, 0, format, type, (ByteBuffer) null);
+        return id;
+    }
+
+    private static void beginFullscreen() {
+        GlStateManager.disableDepth();
+        GlStateManager.depthMask(false);
+        GlStateManager.disableBlend();
+        GlStateManager.disableAlpha();
+        GlStateManager.disableFog();
+        GlStateManager.disableLighting();
+        GlStateManager.disableCull();
+    }
+
+    private static void endFullscreen() {
+        GL20.glUseProgram(0);
+        GlStateManager.setActiveTexture(OpenGlHelper.defaultTexUnit);
+        GlStateManager.enableDepth();
+        GlStateManager.depthMask(true);
+        GlStateManager.enableAlpha();
+        GlStateManager.enableCull();
+        GlStateManager.enableTexture2D();
+    }
+
+    private static void bind2D(int unit, int tex) {
+        GlStateManager.setActiveTexture(GL13.GL_TEXTURE0 + unit);
+        GlStateManager.bindTexture(tex);
+    }
+
+    private static void bind3D(int unit, int tex) {
+        GlStateManager.setActiveTexture(GL13.GL_TEXTURE0 + unit);
+        GL11.glBindTexture(GL12.GL_TEXTURE_3D, tex);
+    }
+
+    private static void drawQuad() {
+        GL11.glBegin(GL11.GL_QUADS);
+        GL11.glVertex2f(-1f, -1f);
+        GL11.glVertex2f(1f, -1f);
+        GL11.glVertex2f(1f, 1f);
+        GL11.glVertex2f(-1f, 1f);
+        GL11.glEnd();
+    }
+
+    private static void readMatrix(int pname, FloatBuffer dst) {
+        dst.clear();
+        GL11.glGetFloat(pname, dst);
+        dst.rewind();
+    }
+
+    /** Inverts src into dst; the inverse is also left in tmpInv. */
+    private boolean invert(FloatBuffer src, FloatBuffer dst) {
+        src.rewind();
+        tmp.load(src);
+        src.rewind();
+        if (Matrix4f.invert(tmp, tmpInv) == null) return false;
+        dst.clear();
+        tmpInv.store(dst);
+        dst.rewind();
+        return true;
+    }
+
+    private static void copy(FloatBuffer src, FloatBuffer dst) {
+        src.rewind();
+        dst.clear();
+        dst.put(src);
+        dst.rewind();
+        src.rewind();
+    }
+}
