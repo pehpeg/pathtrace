@@ -31,7 +31,7 @@ final class LightColors {
         Integer cached = BLOCK_CACHE.get(b);
         if (cached != null) return cached;
         ResourceLocation rl = b.getRegistryName();
-        String p = rl == null ? "" : rl.getResourcePath();
+        String p = rl == null ? "" : rl.toString();
         int c;
         if (p.contains("redstone")) c = RED;
         else if (p.contains("lava") || p.contains("magma") || p.contains("fire") || p.contains("furnace")) c = FIRE;
