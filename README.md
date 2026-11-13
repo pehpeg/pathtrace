@@ -12,8 +12,8 @@ Real-time path traced lighting for **Minecraft 1.12.2** (Forge 14.23.5.x, client
 
 ## Download
 
-Every push is built by GitHub Actions. Open the **Actions** tab, pick the latest green run and download the
-`pathtrace-jar` artifact. Put the jar in `.minecraft/mods`. No other mods are needed.
+Download the jar from the [**Latest build** release](https://github.com/pehpeg/pathtrace/releases/tag/latest).
+It is rebuilt on every push to `main`. Put the jar in `.minecraft/mods`. No other mods are needed.
 
 ## Build it yourself
 
