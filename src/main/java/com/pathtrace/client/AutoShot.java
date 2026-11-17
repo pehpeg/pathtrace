@@ -45,6 +45,7 @@ final class AutoShot {
     private static final double[] OUTSIDE = {19.5, 1.0, -7.5}, OUTSIDE_T = {5.0, 1.5, 5.0};
     private static final double[] INSIDE = {9.5, 0.0, 2.5}, INSIDE_T = {5.5, 2.5, 7.5};
     private static final double[] ABOVE = {20.0, 8.0, -2.0}, ABOVE_T = {4.0, 4.0, 5.0};
+    private static final double[] GROUND = {18.5, 0.0, -1.5}, GROUND_T = {15.0, 0.0, 3.0};
     private static final long DAY = 2000L, NIGHT = 18000L;
 
     private static final Shot[] SHOTS = {
@@ -60,6 +61,10 @@ final class AutoShot {
             new Shot("10_night_vanilla", NIGHT, true, false, true, 0, OUTSIDE, OUTSIDE_T),
             new Shot("11_night_inside_pathtrace", NIGHT, true, true, true, 0, INSIDE, INSIDE_T),
             new Shot("12_night_inside_vanilla", NIGHT, true, false, true, 0, INSIDE, INSIDE_T),
+            new Shot("13_night_debug_direct", NIGHT, true, true, false, 1, OUTSIDE, OUTSIDE_T),
+            new Shot("14_night_torch_ground_pathtrace", NIGHT, true, true, true, 0, GROUND, GROUND_T),
+            new Shot("15_night_torch_ground_vanilla", NIGHT, true, false, true, 0, GROUND, GROUND_T),
+            new Shot("16_night_torch_ground_debug_direct", NIGHT, true, true, false, 1, GROUND, GROUND_T),
     };
 
     private int index = -1;          // -1 = not in a world yet

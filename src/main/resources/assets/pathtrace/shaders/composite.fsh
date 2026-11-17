@@ -10,6 +10,7 @@ uniform sampler2D indirectTex;
 uniform sampler2D directTex;
 uniform sampler2D geomTex;
 uniform sampler2D exposureTex;
+uniform sampler2D gbufferTex;
 uniform mat4 invProj;
 uniform vec2 lowRes;
 uniform float exposure;
@@ -28,8 +29,7 @@ void main() {
         gl_FragColor = vec4(scene, 1.0);
         return;
     }
-    vec4 v = invProj * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
-    float dist = length(v.xyz / v.w);
+    float dist = texture2D(gbufferTex, uv).w;
 
     // joint bilateral upsample: bilinear weights, rejecting low-res texels at another depth
     vec2 pp = uv * lowRes - 0.5;

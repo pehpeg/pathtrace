@@ -39,11 +39,11 @@ public class PTConfig {
 
     @Config.Comment("Colour saturation of the final image.")
     @Config.RangeDouble(min = 0.0, max = 2.0)
-    public static double saturation = 1.1;
+    public static double saturation = 1.0;
 
     @Config.Comment("Sunlight strength.")
     @Config.RangeDouble(min = 0.0, max = 10.0)
-    public static double sunStrength = 2.6;
+    public static double sunStrength = 2.0;
 
     @Config.Comment("Sky light strength.")
     @Config.RangeDouble(min = 0.0, max = 10.0)

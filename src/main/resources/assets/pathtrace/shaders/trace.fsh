@@ -24,19 +24,19 @@ uniform vec2 traceRes;
 
 void main() {
     rngPix = gl_FragCoord.xy;
-    float d = texture2D(depthTex, uv).r;
-    if (d >= 1.0) {
+    if (texture2D(gbufferTex, uv).w <= 0.0) {
         gl_FragData[0] = vec4(0.0);
         gl_FragData[1] = vec4(0.0);
         return;
     }
 
-    vec3 rel = relPosAt(uv);
-    vec3 eye = (invView * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-    vec3 viewDir = normalize(rel - eye);
-    float dist = length(rel - eye);
+    vec4 gb = texture2D(gbufferTex, uv);
+    vec3 eye = eyeRel();
+    vec3 viewDir = viewRayDir(uv);
+    float dist = gb.w;
+    vec3 rel = eye + viewDir * dist;
     vec3 P = rel + camPos;
-    vec3 N = surfaceNormal(uv, rel, viewDir);
+    vec3 N = gb.xyz;
     vec3 origin = P + N * (0.02 + 0.002 * dist);
 
     // ---------------- indirect: cosine-weighted diffuse bounces

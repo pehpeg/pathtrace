@@ -1,10 +1,22 @@
-// PathTrace: rebuild surface position and normal from Minecraft's depth buffer.
-// Positions are relative to the camera entity (add camPos for volume space).
+// PathTrace: surface position and normal.
+// gbuffer.fsh builds them once per frame (exact voxel hit where possible, depth buffer otherwise);
+// the other passes read gbufferTex. Positions are relative to the camera entity (add camPos for volume space).
 
 uniform sampler2D depthTex;
 uniform mat4 invProj;
 uniform mat4 invView;
 uniform vec2 depthTexel;
+uniform sampler2D gbufferTex;   // xyz = world normal, w = distance from the eye along the view ray (0 = sky)
+
+vec3 eyeRel() {
+    return (invView * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+}
+
+vec3 viewRayDir(vec2 tc) {
+    vec4 v = invProj * vec4(tc * 2.0 - 1.0, 1.0, 1.0);
+    v /= v.w;
+    return normalize((invView * vec4(v.xyz, 1.0)).xyz - eyeRel());
+}
 
 vec3 relPosAt(vec2 tc) {
     float d = texture2D(depthTex, tc).r;

@@ -31,6 +31,7 @@ import java.nio.FloatBuffer;
  * Frame pipeline (after the world is drawn, in RenderWorldLastEvent):
  * <ol>
  *   <li>copy the frame's colour (fullbright = albedo) and depth</li>
+ *   <li>gbuffer: exact surface position + normal per pixel (view ray traced through the voxel grid)</li>
  *   <li>probe: trace a small sphere of rays from the eye (used to light the hand)</li>
  *   <li>trace: diffuse bounces and sky light (indirect) at reduced resolution, blended with the
  *       reprojected history</li>
@@ -48,7 +49,7 @@ final class PathTraceRenderer {
     private final VoxelVolume volume = new VoxelVolume();
     private final LightCollector lights = new LightCollector();
 
-    private ShaderProgram traceSh, atrousSh, directSh, compositeSh, probeSh, handSh, lumSh, exposureSh;
+    private ShaderProgram gbufferSh, traceSh, atrousSh, directSh, compositeSh, probeSh, handSh, lumSh, exposureSh;
     private boolean shaderFailed;
 
     private int width = -1, height = -1, traceW = -1, traceH = -1;
@@ -59,6 +60,7 @@ final class PathTraceRenderer {
     private final RenderTarget[] expo = new RenderTarget[2];
     private RenderTarget lum;
     private RenderTarget direct;
+    private RenderTarget gbuffer;
     private int cur;
     private int frame;
     private boolean hasHistory;
@@ -170,6 +172,17 @@ final class PathTraceRenderer {
         beginFullscreen();
         int prev = 1 - cur;
 
+        // 1b. gbuffer: exact surface distance + normal
+        gbuffer.bind();
+        gbufferSh.use();
+        setCommon(gbufferSh);
+        bind2D(0, depthTex);
+        gbufferSh.set("depthTex", 0);
+        gbufferSh.setMatrix("invProj", invProj);
+        gbufferSh.setMatrix("invView", invView);
+        gbufferSh.set("depthTexel", 1f / width, 1f / height);
+        drawQuad();
+
         // 2. eye probe
         probe[cur].bind();
         probeSh.use();
@@ -190,6 +203,8 @@ final class PathTraceRenderer {
         traceSh.set("depthTex", 0);
         traceSh.set("histIndirect", 2);
         traceSh.set("histGeom", 3);
+        bind2D(4, gbuffer.tex[0]);
+        traceSh.set("gbufferTex", 4);
         traceSh.setMatrix("invProj", invProj);
         traceSh.setMatrix("invView", invView);
         traceSh.setMatrix("prevProj", prevProj);
@@ -227,6 +242,8 @@ final class PathTraceRenderer {
         setCommon(directSh);
         bind2D(0, depthTex);
         directSh.set("depthTex", 0);
+        bind2D(4, gbuffer.tex[0]);
+        directSh.set("gbufferTex", 4);
         directSh.setMatrix("invProj", invProj);
         directSh.setMatrix("invView", invView);
         directSh.set("depthTexel", 1f / width, 1f / height);
@@ -278,6 +295,8 @@ final class PathTraceRenderer {
         compositeSh.set("geomTex", 4);
         compositeSh.set("depthTex", 5);
         compositeSh.set("exposureTex", 6);
+        bind2D(7, gbuffer.tex[0]);
+        compositeSh.set("gbufferTex", 7);
         compositeSh.setMatrix("invProj", invProj);
         compositeSh.set("lowRes", (float) traceW, (float) traceH);
         compositeSh.set("debugView", PTConfig.debugView);
@@ -457,6 +476,7 @@ final class PathTraceRenderer {
         if (traceSh != null) return true;
         if (shaderFailed) return false;
         try {
+            gbufferSh = ShaderProgram.load(VSH, "gbuffer.fsh");
             traceSh = ShaderProgram.load(VSH, "trace.fsh");
             atrousSh = ShaderProgram.load(VSH, "atrous.fsh");
             directSh = ShaderProgram.load(VSH, "direct.fsh");
@@ -476,10 +496,10 @@ final class PathTraceRenderer {
     }
 
     private void deleteShaders() {
-        for (ShaderProgram s : new ShaderProgram[]{traceSh, atrousSh, directSh, compositeSh, probeSh, handSh, lumSh, exposureSh}) {
+        for (ShaderProgram s : new ShaderProgram[]{gbufferSh, traceSh, atrousSh, directSh, compositeSh, probeSh, handSh, lumSh, exposureSh}) {
             if (s != null) s.delete();
         }
-        traceSh = atrousSh = directSh = compositeSh = probeSh = handSh = lumSh = exposureSh = null;
+        gbufferSh = traceSh = atrousSh = directSh = compositeSh = probeSh = handSh = lumSh = exposureSh = null;
     }
 
     private void ensureTargets(int w, int h) {
@@ -499,6 +519,7 @@ final class PathTraceRenderer {
             expo[i] = new RenderTarget(1, 1, 1, GL11.GL_NEAREST);
         }
         direct = new RenderTarget(w, h, 1, GL11.GL_NEAREST);
+        gbuffer = new RenderTarget(w, h, 1, GL11.GL_NEAREST, GL30.GL_RGBA32F);   // 32-bit: distance must be exact
         lum = new RenderTarget(64, 64, 1, GL11.GL_NEAREST_MIPMAP_NEAREST);
         bind2D(0, lum.tex[0]);
         GL30.glGenerateMipmap(GL11.GL_TEXTURE_2D);
@@ -519,7 +540,8 @@ final class PathTraceRenderer {
         }
         if (lum != null) lum.delete();
         if (direct != null) direct.delete();
-        lum = direct = null;
+        if (gbuffer != null) gbuffer.delete();
+        lum = direct = gbuffer = null;
     }
 
     private static int makeTex(int internal, int format, int type, int w, int h) {

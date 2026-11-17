@@ -12,12 +12,16 @@ import org.lwjgl.opengl.GL30;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 
-/** A framebuffer with one or more float colour attachments (multiple render targets). */
+/** A framebuffer with one or more float colour attachments (multiple render targets). Default format RGBA16F. */
 final class RenderTarget {
     final int width, height, fbo;
     final int[] tex;
 
     RenderTarget(int width, int height, int attachments, int minFilter) {
+        this(width, height, attachments, minFilter, GL30.GL_RGBA16F);
+    }
+
+    RenderTarget(int width, int height, int attachments, int minFilter, int internalFormat) {
         this.width = width;
         this.height = height;
         this.tex = new int[attachments];
@@ -31,7 +35,7 @@ final class RenderTarget {
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
             GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
-            GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL30.GL_RGBA16F, width, height, 0,
+            GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, internalFormat, width, height, 0,
                     GL11.GL_RGBA, GL11.GL_FLOAT, (ByteBuffer) null);
             OpenGlHelper.glFramebufferTexture2D(OpenGlHelper.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0 + i,
                     GL11.GL_TEXTURE_2D, tex[i], 0);

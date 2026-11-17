@@ -47,25 +47,34 @@ Mods → PathTrace → Config, or `config/pathtrace.cfg`.
 | `shadowedLights` | 4 | Strongest nearby lights that get an exact shadow per pixel |
 | `denoise` | true | Edge-aware wavelet denoiser |
 | `autoExposure` | true | Eye adaptation |
-| `exposure`, `saturation` | 1.0, 1.1 | Grading |
-| `sunStrength`, `skyStrength` | 2.6, 1.4 | Light balance |
+| `exposure`, `saturation` | 1.0, 1.0 | Grading |
+| `sunStrength`, `skyStrength` | 2.0, 0.7 | Light balance |
 | `pointLightStrength`, `emissiveStrength` | 6.0, 4.0 | Block light and glow brightness |
 | `dynamicLights` | true | Lights from entities and items |
 | `litHand` | true | Path traced lighting on the first-person hand |
+| `debugView` | 0 | 1 = direct light only, 2 = bounce light only, 3 = surface normals |
 
 ## How it works
 
 1. Minecraft draws the world as usual, but with a white lightmap, which leaves plain surface colours and depth.
 2. A 128³ block grid around the camera is kept on the GPU as a 3D texture, plus a coarse 32³ occupancy grid
    for skipping empty space. Block changes and chunk loads are pushed in immediately.
-3. `direct.fsh` (full resolution, no randomness) gives each block-texture pixel one fixed sun shadow ray and
+3. `gbuffer.fsh` traces each pixel's view ray through the grid to get the exact surface position and
+   direction, checked against the depth buffer (which is used directly for mobs, slabs, plants…).
+4. `direct.fsh` (full resolution, no randomness) gives each block-texture pixel one fixed sun shadow ray and
    one shadow ray for each of the 4 strongest nearby lights. Weaker lights share those lights' visibility.
    Because nothing is random, direct light has no noise and needs no averaging over frames.
    Pixel-snapped shadows are an idea from [Vibrancy](https://github.com/TheTypholorian/vibrancy) (MIT).
-4. `trace.fsh` (reduced resolution) follows diffuse bounces and sky light through the grid and blends them with
+5. `trace.fsh` (reduced resolution) follows diffuse bounces and sky light through the grid and blends them with
    reprojected history. `atrous.fsh` denoises that in 4 passes.
-5. `composite.fsh` upsamples the bounce light, adds direct light, and applies albedo, exposure and an ACES tonemap.
-6. The hand is drawn by the mod and relit (`hand.fsh`) from a 64-direction light probe traced at the eye.
+6. `composite.fsh` upsamples the bounce light, adds direct light, and applies albedo, exposure and an ACES tonemap.
+7. The hand is drawn by the mod and relit (`hand.fsh`) from a 64-direction light probe traced at the eye.
+
+## Screenshots
+
+CI starts the game on a virtual display (software OpenGL), builds a test scene and takes screenshots
+of every build. They are on the [`screenshots` branch](https://github.com/pehpeg/pathtrace/tree/screenshots).
+Run the same thing locally with `gradlew runClient -Pautoshot`.
 
 ## Limitations
 
