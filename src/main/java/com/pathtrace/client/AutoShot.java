@@ -47,7 +47,7 @@ final class AutoShot {
     private static final double[] ABOVE = {20.0, 8.0, -2.0}, ABOVE_T = {4.0, 4.0, 5.0};
     private static final double[] GROUND = {18.5, 0.0, -1.5}, GROUND_T = {15.0, 0.0, 3.0};
     // a lit tower ~85 blocks away: outside the 128-block voxel grid, inside render distance 8
-    private static final double[] FAR = {6.0, 0.0, 6.0}, FAR_T = {2.0, 8.0, 89.0};
+    private static final double[] FAR = {16.0, 0.0, 10.0}, FAR_T = {2.0, 8.0, 89.0};
     private static final long DAY = 2000L, NIGHT = 18000L;
 
     private static final Shot[] SHOTS = {
