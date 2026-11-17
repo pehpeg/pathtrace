@@ -55,10 +55,7 @@ void main() {
             break;
         }
         vec4 v = fetchVoxel(hc);
-        // emitters near the camera are already sampled as point lights
-        if (length(hc + 0.5 - camPos) > neeRadius) {
-            indirect += throughput * emitColor(v) * emission(v) * emissiveStrength;
-        }
+        // (no emission here: every block light is already sampled directly as a point light)
         throughput *= pow(v.rgb, vec3(2.2)) * 0.85;
         vec3 hp = pos + dir * t + hn * 0.01;
         vec3 hl = pointLights(hp, hn, true);

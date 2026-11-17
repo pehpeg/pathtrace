@@ -46,6 +46,8 @@ final class AutoShot {
     private static final double[] INSIDE = {9.5, 0.0, 2.5}, INSIDE_T = {5.5, 2.5, 7.5};
     private static final double[] ABOVE = {20.0, 8.0, -2.0}, ABOVE_T = {4.0, 4.0, 5.0};
     private static final double[] GROUND = {18.5, 0.0, -1.5}, GROUND_T = {15.0, 0.0, 3.0};
+    // a lit tower ~85 blocks away: outside the 128-block voxel grid, inside render distance 8
+    private static final double[] FAR = {6.0, 0.0, 6.0}, FAR_T = {2.0, 8.0, 89.0};
     private static final long DAY = 2000L, NIGHT = 18000L;
 
     private static final Shot[] SHOTS = {
@@ -65,6 +67,9 @@ final class AutoShot {
             new Shot("14_night_torch_ground_pathtrace", NIGHT, true, true, true, 0, GROUND, GROUND_T),
             new Shot("15_night_torch_ground_vanilla", NIGHT, true, false, true, 0, GROUND, GROUND_T),
             new Shot("16_night_torch_ground_debug_direct", NIGHT, true, true, false, 1, GROUND, GROUND_T),
+            new Shot("17_night_far_tower_pathtrace", NIGHT, false, true, false, 0, FAR, FAR_T),
+            new Shot("18_night_far_tower_vanilla", NIGHT, false, false, false, 0, FAR, FAR_T),
+            new Shot("19_night_far_tower_debug_direct", NIGHT, false, true, false, 1, FAR, FAR_T),
     };
 
     private int index = -1;          // -1 = not in a world yet
@@ -80,7 +85,7 @@ final class AutoShot {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.currentScreen instanceof GuiMainMenu) {
             started = true;
-            mc.gameSettings.renderDistanceChunks = 6;
+            mc.gameSettings.renderDistanceChunks = 8;
             mc.gameSettings.pauseOnLostFocus = false;   // the virtual display never has focus
             mc.gameSettings.tutorialStep = TutorialSteps.NONE;
             mc.getTutorial().setStep(TutorialSteps.NONE);
@@ -191,6 +196,13 @@ final class AutoShot {
         for (int x = -7; x <= -3; x++) for (int z = 9; z <= 13; z++) for (int y = 4; y <= 5; y++)
             if (x != -5 || z != 11 || y > 4) set(w, b, x, y, z, leaves);
         set(w, b, -5, 6, 11, leaves);
+        // distant tower: stone column with glowstone windows, torches around its foot
+        for (int y = 0; y <= 20; y++)
+            for (int x = 0; x <= 4; x++)
+                for (int z = 88; z <= 92; z++) set(w, b, x, y, z, stone);
+        for (int y = 2; y <= 18; y += 4)
+            for (int x = 1; x <= 3; x += 2) set(w, b, x, y, 88, Blocks.GLOWSTONE.getDefaultState());
+        for (int x = -3; x <= 7; x += 2) set(w, b, x, 0, 85, Blocks.TORCH.getDefaultState());
     }
 
     private static void set(WorldServer w, BlockPos b, int x, int y, int z, IBlockState s) {

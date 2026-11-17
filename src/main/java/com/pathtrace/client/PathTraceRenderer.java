@@ -48,6 +48,8 @@ final class PathTraceRenderer {
 
     private final VoxelVolume volume = new VoxelVolume();
     private final LightCollector lights = new LightCollector();
+    private final EmitterIndex emitters = new EmitterIndex();
+    private final LightGrid lightGrid = new LightGrid();
 
     private ShaderProgram gbufferSh, traceSh, atrousSh, directSh, compositeSh, probeSh, handSh, lumSh, exposureSh;
     private boolean shaderFailed;
@@ -97,12 +99,18 @@ final class PathTraceRenderer {
         return volume;
     }
 
+    EmitterIndex emitters() {
+        return emitters;
+    }
+
     boolean isReady() {
         return traceSh != null && volume.isValid() && OpenGlHelper.isFramebufferEnabled();
     }
 
     void onWorldChange() {
         volume.invalidate();
+        emitters.reset(null);
+        lightGrid.invalidate();
         hasHistory = false;
     }
 
@@ -160,6 +168,8 @@ final class PathTraceRenderer {
         lastNanos = now;
 
         lights.collect(world, cam, pt, volume, cx, cy, cz, mc.gameSettings.thirdPersonView == 0);
+        emitters.process(world, 96);
+        lightGrid.update(emitters, cx, cy, cz, mc.gameSettings.renderDistanceChunks);
         computeLighting(world, cam, pt);
 
         // 1. grab colour + depth of the frame vanilla just drew
@@ -394,10 +404,18 @@ final class PathTraceRenderer {
         s.set("ambient", ambient);
         s.set("emissiveStrength", (float) PTConfig.emissiveStrength);
         s.set("frame", (float) (frame % 1024));
-        s.setVec4Array("ptLightPos", lights.pos);
-        s.setVec4Array("ptLightCol", lights.col);
-        s.set("ptLightCount", lights.count);
-        s.set("neeRadius", lights.neeRadius);
+        s.setVec4Array("dynLightPos", lights.pos);
+        s.setVec4Array("dynLightCol", lights.col);
+        s.set("dynLightCount", lights.count);
+        bindRaw(8, lightGrid.lightTexture());
+        bindRaw(9, lightGrid.cellTexture());
+        s.set("lightTex", 8);
+        s.set("cellTex", 9);
+        s.set("gridOrigin", (float) (lightGrid.ox - volume.originX()), (float) (lightGrid.oy - volume.originY()),
+                (float) (lightGrid.oz - volume.originZ()));
+        s.set("gridCells", (float) lightGrid.gx, (float) lightGrid.gy, (float) lightGrid.gz);
+        s.set("lightTexSize", lightGrid.lightTexWidth(), lightGrid.lightTexHeight());
+        s.set("cellTexSize", lightGrid.cellTexWidth(), (float) lightGrid.cellTexH);
     }
 
     private void setGrading(ShaderProgram s) {
@@ -578,6 +596,14 @@ final class PathTraceRenderer {
     private static void bind2D(int unit, int tex) {
         GlStateManager.setActiveTexture(GL13.GL_TEXTURE0 + unit);
         GlStateManager.bindTexture(tex);
+    }
+
+    /** Units 8+ are beyond GlStateManager's texture cache (8 units), so bind them directly. */
+    private static void bindRaw(int unit, int tex) {
+        GL13.glActiveTexture(GL13.GL_TEXTURE0 + unit);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex);
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+        GlStateManager.setActiveTexture(GL13.GL_TEXTURE0);
     }
 
     private static void bind3D(int unit, int tex) {

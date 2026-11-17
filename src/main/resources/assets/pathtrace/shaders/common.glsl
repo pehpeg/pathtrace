@@ -15,12 +15,19 @@ uniform vec3 ambient;
 uniform float emissiveStrength;
 uniform float frame;
 
-#define MAX_LIGHTS 48
-uniform vec4 ptLightPos[MAX_LIGHTS];   // xyz position, w radius (blocks)
-uniform vec4 ptLightCol[MAX_LIGHTS];   // rgb intensity
-uniform int ptLightCount;
-uniform float neeRadius;               // emitting blocks closer than this are in the light list
-float lightMinDist = 0.0;              // falloff never gets brighter than at this distance
+// Block lights: clustered grid (see LightGrid.java). Dynamic lights: small uniform list.
+uniform sampler2D lightTex;   // 2 texels per light: (pos relative to grid origin, radius), (rgb intensity)
+uniform sampler2D cellTex;    // 4 texels per 8x8x8 cell: 16 light indices, strongest first, -1 = none
+uniform vec3 gridOrigin;      // volume space
+uniform vec3 gridCells;
+uniform vec2 lightTexSize;
+uniform vec2 cellTexSize;
+#define GRID_CELL 8.0
+#define MAX_DYN 16
+uniform vec4 dynLightPos[MAX_DYN];   // xyz position, w radius
+uniform vec4 dynLightCol[MAX_DYN];   // rgb intensity
+uniform int dynLightCount;
+float lightMinDist = 0.0;            // falloff never gets brighter than at this distance
 
 #define MAX_STEPS 160
 
@@ -170,8 +177,22 @@ vec3 cosineDirection(vec3 n) {
 }
 
 // ------------------------------------------------------------------ point lights
-float lightTerm(int i, vec3 p, vec3 n, out vec3 contrib) {
-    vec4 lp = ptLightPos[i];
+// visitLights(p, n) walks the dynamic lights and the block lights of p's grid cell, and leaves:
+//   g_sum    total unshadowed light
+//   g_total  its luminance; g_pick = one light chosen in proportion to its contribution
+//   g_top*   the 4 strongest lights (for exact shadows in direct.fsh)
+//   g_glow   glow of the emitting block p sits on (from the light list, works outside the voxel grid)
+vec3 g_sum;
+float g_total;
+vec4 g_pick;
+vec4 g_topP0, g_topP1, g_topP2, g_topP3;
+vec3 g_topC0, g_topC1, g_topC2, g_topC3;
+float g_topW0, g_topW1, g_topW2, g_topW3;
+vec3 g_ownCell;
+vec3 g_glow;
+bool g_wantTop = false;
+
+float lightTerm(vec4 lp, vec3 lc, vec3 p, vec3 n, out vec3 contrib) {
     vec3 L = lp.xyz - p;
     float d2 = dot(L, L);
     contrib = vec3(0.0);
@@ -181,38 +202,88 @@ float lightTerm(int i, vec3 p, vec3 n, out vec3 contrib) {
     if (ndl <= 0.0) return 0.0;
     float fd = max(d, lightMinDist);
     float x = max(1.0 - fd / lp.w, 0.0);
-    contrib = ptLightCol[i].rgb * (ndl * x * x / (1.0 + 0.3 * fd * fd));
+    contrib = lc * (ndl * x * x / (1.0 + 0.3 * fd * fd));
     return luminance(contrib);
 }
 
-// Sum of all point lights at p. With shadows, one light is picked in proportion to its
-// contribution and a single shadow ray decides visibility (unbiased "one sample" estimator).
-vec3 pointLights(vec3 p, vec3 n, bool shadows) {
-    vec3 sum = vec3(0.0);
+void visitLight(vec4 lp, vec3 lc, vec3 p, vec3 n) {
+    if (all(equal(floor(lp.xyz), g_ownCell))) {
+        g_glow = max(g_glow, lc / max(max(lc.r, lc.g), max(lc.b, 1e-4)) * ((lp.w - 0.5) / 15.0));
+    }
     vec3 c;
-    float total = 0.0;
-    for (int i = 0; i < MAX_LIGHTS; i++) {
-        if (i >= ptLightCount) break;
-        total += lightTerm(i, p, n, c);
-        sum += c;
+    float w = lightTerm(lp, lc, p, n, c);
+    if (w <= 0.0) return;
+    g_sum += c;
+    g_total += w;
+    if (rand() * g_total < w) g_pick = lp;
+    if (!g_wantTop) return;
+    if (w > g_topW0) {
+        g_topW3 = g_topW2; g_topP3 = g_topP2; g_topC3 = g_topC2;
+        g_topW2 = g_topW1; g_topP2 = g_topP1; g_topC2 = g_topC1;
+        g_topW1 = g_topW0; g_topP1 = g_topP0; g_topC1 = g_topC0;
+        g_topW0 = w; g_topP0 = lp; g_topC0 = c;
+    } else if (w > g_topW1) {
+        g_topW3 = g_topW2; g_topP3 = g_topP2; g_topC3 = g_topC2;
+        g_topW2 = g_topW1; g_topP2 = g_topP1; g_topC2 = g_topC1;
+        g_topW1 = w; g_topP1 = lp; g_topC1 = c;
+    } else if (w > g_topW2) {
+        g_topW3 = g_topW2; g_topP3 = g_topP2; g_topC3 = g_topC2;
+        g_topW2 = w; g_topP2 = lp; g_topC2 = c;
+    } else if (w > g_topW3) {
+        g_topW3 = w; g_topP3 = lp; g_topC3 = c;
     }
-    if (total <= 1e-5 || !shadows) return sum;
+}
 
-    float target = rand() * total;
-    float acc = 0.0;
-    vec3 lpos = vec3(0.0);
-    for (int i = 0; i < MAX_LIGHTS; i++) {
-        if (i >= ptLightCount) break;
-        acc += lightTerm(i, p, n, c);
-        lpos = ptLightPos[i].xyz;
-        if (acc >= target) break;
+bool visitIndex(float idx, vec3 p, vec3 n) {
+    if (idx < 0.0) return false;
+    vec2 base = vec2(mod(idx, 128.0) * 2.0, floor(idx / 128.0));
+    vec4 lp = texture2D(lightTex, (base + 0.5) / lightTexSize);
+    vec3 lc = texture2D(lightTex, (base + vec2(1.5, 0.5)) / lightTexSize).rgb;
+    lp.xyz += gridOrigin;
+    visitLight(lp, lc, p, n);
+    return true;
+}
+
+void visitLights(vec3 p, vec3 n) {
+    g_sum = vec3(0.0); g_total = 0.0; g_pick = vec4(0.0); g_glow = vec3(0.0);
+    g_topW0 = 0.0; g_topW1 = 0.0; g_topW2 = 0.0; g_topW3 = 0.0;
+    g_topP0 = vec4(0.0); g_topP1 = vec4(0.0); g_topP2 = vec4(0.0); g_topP3 = vec4(0.0);
+    g_topC0 = vec3(0.0); g_topC1 = vec3(0.0); g_topC2 = vec3(0.0); g_topC3 = vec3(0.0);
+    for (int i = 0; i < MAX_DYN; i++) {
+        if (i >= dynLightCount) break;
+        visitLight(dynLightPos[i], dynLightCol[i].rgb, p, n);
     }
-    vec3 L = lpos - p;
+    vec3 c = floor((p - gridOrigin) / GRID_CELL);
+    if (any(lessThan(c, vec3(0.0))) || any(greaterThanEqual(c, gridCells))) return;
+    float cell = (c.z * gridCells.y + c.y) * gridCells.x + c.x;
+    for (int j = 0; j < 4; j++) {
+        float t = cell * 4.0 + float(j);
+        vec4 ids = texture2D(cellTex, (vec2(mod(t, cellTexSize.x), floor(t / cellTexSize.x)) + 0.5) / cellTexSize);
+        if (!visitIndex(ids.x, p, n)) return;
+        if (!visitIndex(ids.y, p, n)) return;
+        if (!visitIndex(ids.z, p, n)) return;
+        if (!visitIndex(ids.w, p, n)) return;
+    }
+}
+
+// 1 if nothing blocks the segment from p to the light at lp
+float lightVisible(vec3 p, vec3 lp) {
+    vec3 L = lp - p;
     float d = length(L);
+    if (d < 1e-3) return 1.0;
     vec3 hc; vec3 hn; float t;
-    float r = traceRay(p, L / max(d, 1e-4), d - 0.05, hc, hn, t);
-    if (r > 0.5 && r < 1.5 && any(notEqual(hc, floor(lpos)))) return vec3(0.0);
-    return sum;
+    float r = traceRay(p, L / d, d - 0.05, hc, hn, t);
+    if (r > 0.5 && r < 1.5 && any(notEqual(hc, floor(lp)))) return 0.0;
+    return 1.0;
+}
+
+// All point lights at p. With shadows, the light picked in proportion to its contribution
+// gets one shadow ray that stands in for all of them (unbiased one-sample estimator).
+vec3 pointLights(vec3 p, vec3 n, bool shadows) {
+    g_ownCell = vec3(-1.0e9);
+    visitLights(p, n);
+    if (g_total <= 1e-5 || !shadows) return g_sum;
+    return g_sum * lightVisible(p, g_pick.xyz);
 }
 
 // 64 fixed directions on a sphere (Fibonacci), shared by the eye probe and the hand pass.

@@ -84,7 +84,7 @@ public final class ClientHandler {
     @SubscribeEvent
     public void onWorldLoad(WorldEvent.Load event) {
         if (event.getWorld().isRemote) {
-            event.getWorld().addEventListener(new BlockChangeListener(event.getWorld(), RENDERER.volume()));
+            event.getWorld().addEventListener(new BlockChangeListener(event.getWorld(), RENDERER.volume(), RENDERER.emitters()));
         }
     }
 

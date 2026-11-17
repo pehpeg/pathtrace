@@ -13,27 +13,20 @@ import net.minecraft.world.World;
 import org.lwjgl.BufferUtils;
 
 import java.nio.FloatBuffer;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
- * Builds the per-frame point light list the shaders sample directly ("next event estimation"):
- * the nearest light-emitting blocks plus dynamic lights from entities (held items, dropped items,
- * burning mobs, blazes, fireballs). Sampling lights directly is what removes the speckle you get
- * when random rays have to stumble onto a torch by chance.
+ * Per-frame dynamic lights from entities: held items, dropped items, burning mobs, blazes,
+ * fireballs. Block lights are handled by {@link LightGrid}.
  */
 final class LightCollector {
-    static final int MAX = 48;          // must match MAX_LIGHTS in common.glsl
-    private static final int MAX_DYNAMIC = 12;
+    static final int MAX = 16;          // must match MAX_DYN in common.glsl
+    private static final int MAX_DYNAMIC = MAX;
     private static final double DYNAMIC_RANGE = 40.0;
 
     final FloatBuffer pos = BufferUtils.createFloatBuffer(MAX * 4);
     final FloatBuffer col = BufferUtils.createFloatBuffer(MAX * 4);
     int count;
-    float neeRadius;
 
-    private long[] sortBuf = new long[1024];
     private final double[] dynD2 = new double[MAX_DYNAMIC];
     private final float[][] dyn = new float[MAX_DYNAMIC][5]; // x y z light color (volume space)
     private int dynCount;
@@ -50,38 +43,6 @@ final class LightCollector {
         for (int i = 0; i < dynCount; i++) {
             float[] d = dyn[i];
             put((float) (d[0] - ox), (float) (d[1] - oy), (float) (d[2] - oz), (int) d[3], (int) d[4], strength);
-        }
-
-        // nearest static emitters
-        float camX = (float) (cx - ox), camY = (float) (cy - oy), camZ = (float) (cz - oz);
-        int n = 0;
-        int N = VoxelVolume.N;
-        for (int z = 0; z < N; z++) {
-            HashMap<Integer, Integer> m = vol.emitters(z);
-            if (m.isEmpty()) continue;
-            float dz = z + 0.5f - camZ;
-            for (Map.Entry<Integer, Integer> e : m.entrySet()) {
-                int k = e.getKey();
-                float dx = (k % N) + 0.5f - camX;
-                float dy = ((k / N) % N) + 0.5f - camY;
-                float d2 = dx * dx + dy * dy + dz * dz;
-                if (n == sortBuf.length) sortBuf = Arrays.copyOf(sortBuf, n * 2);
-                sortBuf[n++] = ((long) Float.floatToIntBits(d2) << 32) | (k & 0xFFFFFFFFL);
-            }
-        }
-        Arrays.sort(sortBuf, 0, n);
-        int take = Math.min(n, MAX - count);
-        for (int i = 0; i < take; i++) {
-            int k = (int) sortBuf[i];
-            int x = k % N, y = (k / N) % N, z = k / (N * N);
-            Integer v = vol.emitters(z).get(k);
-            if (v == null) continue;
-            put(x + 0.5f, y + 0.5f, z + 0.5f, v & 15, (v >> 4) & 7, strength);
-        }
-        if (n > take) {
-            neeRadius = take == 0 ? 0f : (float) Math.sqrt(Float.intBitsToFloat((int) (sortBuf[take - 1] >>> 32)));
-        } else {
-            neeRadius = 1.0e6f;
         }
 
         while (pos.position() < pos.capacity()) {

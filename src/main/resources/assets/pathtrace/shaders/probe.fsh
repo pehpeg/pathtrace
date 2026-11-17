@@ -34,7 +34,6 @@ void main() {
             float nd = dot(hn, lightDir);
             if (nd > 0.0) l += lightColor * nd * sunVisibility(hp);
             result = pow(v.rgb, vec3(2.2)) * 0.85 * l;
-            if (length(hc + 0.5 - camPos) > neeRadius) result += emitColor(v) * emission(v) * emissiveStrength;
         }
     }
     if (hasHistory > 0.5) result = mix(prev.rgb, result, 0.12);

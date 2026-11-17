@@ -14,7 +14,6 @@ import org.lwjgl.opengl.GL30;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 
@@ -25,7 +24,6 @@ import java.util.LinkedHashSet;
  *   <li>coarse texture: one texel per 4x4x4 cell, non-zero if any block in it is solid (empty-space skipping)</li>
  *   <li>height texture: world height per column, so rays leaving the grid know whether they reach the sky</li>
  * </ul>
- * Light-emitting blocks are also tracked per Z slice so they can be sampled directly as lights.
  */
 final class VoxelVolume {
     static final int N = 128;
@@ -38,9 +36,6 @@ final class VoxelVolume {
     private final ByteBuffer coarse = BufferUtils.createByteBuffer(C * C * C);
     private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 
-    private HashMap<Integer, Integer>[] emitters = newMaps();
-    private HashMap<Integer, Integer>[] buildEmitters = newMaps();
-
     private final LinkedHashSet<Long> dirtyBlocks = new LinkedHashSet<>();
     private final ArrayDeque<int[]> dirtyBoxes = new ArrayDeque<>();
 
@@ -50,13 +45,6 @@ final class VoxelVolume {
     private int bx, by, bz, buildZ, refreshZ;
     private World world;
 
-    @SuppressWarnings("unchecked")
-    private static HashMap<Integer, Integer>[] newMaps() {
-        HashMap<Integer, Integer>[] m = new HashMap[N];
-        for (int i = 0; i < N; i++) m[i] = new HashMap<>();
-        return m;
-    }
-
     boolean isValid() { return valid; }
     boolean isFor(World w) { return w == world; }
     int originX() { return ox; }
@@ -65,7 +53,6 @@ final class VoxelVolume {
     int texture() { return tex3d; }
     int coarseTexture() { return coarseTex; }
     int heightTexture() { return heightTex; }
-    HashMap<Integer, Integer> emitters(int z) { return emitters[z]; }
 
     void invalidate() {
         valid = false;
@@ -73,7 +60,6 @@ final class VoxelVolume {
         world = null;
         dirtyBlocks.clear();
         dirtyBoxes.clear();
-        for (HashMap<Integer, Integer> m : emitters) m.clear();
     }
 
     void markBlock(BlockPos p) {
@@ -103,12 +89,9 @@ final class VoxelVolume {
 
         if (rebuilding) {
             int end = Math.min(N, buildZ + PTConfig.rebuildSlicesPerFrame);
-            for (int z = buildZ; z < end; z++) fillSlice(bx, by, bz, z, buildEmitters);
+            for (int z = buildZ; z < end; z++) fillSlice(bx, by, bz, z);
             buildZ = end;
             if (buildZ >= N) {
-                HashMap<Integer, Integer>[] t = emitters;
-                emitters = buildEmitters;
-                buildEmitters = t;
                 ox = bx; oy = by; oz = bz;
                 for (int cz = 0; cz < C; cz++)
                     for (int cy = 0; cy < C; cy++)
@@ -127,7 +110,7 @@ final class VoxelVolume {
         processDirty();
         for (int i = 0; i < PTConfig.refreshSlicesPerFrame; i++) {
             int z = refreshZ;
-            fillSlice(ox, oy, oz, z, emitters);
+            fillSlice(ox, oy, oz, z);
             uploadVoxelBox(0, 0, z, N, N, 1);
             int cz = z >> 2;
             for (int cy = 0; cy < C; cy++)
@@ -148,7 +131,7 @@ final class VoxelVolume {
             it.remove();
             int x = p.getX() - ox, y = p.getY() - oy, z = p.getZ() - oz;
             if (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) continue;
-            fillVoxel(ox, oy, oz, x, y, z, emitters);
+            fillVoxel(ox, oy, oz, x, y, z);
             uploadVoxelBox(x, y, z, 1, 1, 1);
             computeCoarse(x >> 2, y >> 2, z >> 2);
             uploadCoarseBox(x >> 2, y >> 2, z >> 2, 1, 1, 1);
@@ -167,7 +150,7 @@ final class VoxelVolume {
             }
             for (int z = z0; z <= z1; z++)
                 for (int y = y0; y <= y1; y++)
-                    for (int x = x0; x <= x1; x++) fillVoxel(ox, oy, oz, x, y, z, emitters);
+                    for (int x = x0; x <= x1; x++) fillVoxel(ox, oy, oz, x, y, z);
             for (int z = z0; z <= z1; z++)
                 for (int x = x0; x <= x1; x++) fillHeight(ox, oz, x, z);
             uploadVoxelBox(x0, y0, z0, x1 - x0 + 1, y1 - y0 + 1, z1 - z0 + 1);
@@ -179,11 +162,10 @@ final class VoxelVolume {
         }
     }
 
-    private void fillSlice(int baseX, int baseY, int baseZ, int z, HashMap<Integer, Integer>[] maps) {
-        maps[z].clear();
+    private void fillSlice(int baseX, int baseY, int baseZ, int z) {
         for (int x = 0; x < N; x++) {
             fillHeight(baseX, baseZ, x, z);
-            for (int y = 0; y < N; y++) fillVoxel(baseX, baseY, baseZ, x, y, z, maps);
+            for (int y = 0; y < N; y++) fillVoxel(baseX, baseY, baseZ, x, y, z);
         }
     }
 
@@ -198,13 +180,12 @@ final class VoxelVolume {
         heightsDirty = true;
     }
 
-    private void fillVoxel(int baseX, int baseY, int baseZ, int x, int y, int z, HashMap<Integer, Integer>[] maps) {
+    private void fillVoxel(int baseX, int baseY, int baseZ, int x, int y, int z) {
         int key = (z * N + y) * N + x;
         int idx = key * 4;
         int wy = baseY + y;
         if (wy < 0 || wy > 255) {
             voxels.putInt(idx, 0);
-            maps[z].remove(key);
             return;
         }
         pos.setPos(baseX + x, wy, baseZ + z);
@@ -212,14 +193,12 @@ final class VoxelVolume {
         Material m = s.getMaterial();
         if (m == Material.AIR) {
             voxels.putInt(idx, 0);
-            maps[z].remove(key);
             return;
         }
         int light = Math.max(0, Math.min(15, s.getLightValue(world, pos)));
         boolean solid = s.isOpaqueCube() || m == Material.LEAVES || light > 0;
         if (!solid) {
             voxels.putInt(idx, 0);
-            maps[z].remove(key);
             return;
         }
         int color = light > 0 ? LightColors.forBlock(s.getBlock()) : 0;
@@ -229,8 +208,6 @@ final class VoxelVolume {
         voxels.put(idx + 1, (byte) (c >> 8));
         voxels.put(idx + 2, (byte) c);
         voxels.put(idx + 3, (byte) (128 | (color << 4) | light));
-        if (light > 0) maps[z].put(key, light | (color << 4));
-        else maps[z].remove(key);
     }
 
     private void computeCoarse(int cx, int cy, int cz) {
