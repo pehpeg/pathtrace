@@ -52,6 +52,7 @@ final class AutoShot {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.currentScreen instanceof GuiMainMenu) {
             mc.gameSettings.renderDistanceChunks = 6;
+            mc.gameSettings.pauseOnLostFocus = false;   // the virtual display never has focus
             WorldSettings ws = new WorldSettings(1234L, GameType.CREATIVE, false, false, WorldType.FLAT);
             ws.enableCommands();
             next(1);
@@ -64,6 +65,9 @@ final class AutoShot {
         if (event.phase != TickEvent.Phase.END) return;
         Minecraft mc = Minecraft.getMinecraft();
         frames++;
+        if (stage >= 2 && mc.world != null && mc.currentScreen != null) {
+            mc.displayGuiScreen(null);   // close pause menus etc.
+        }
         if (System.currentTimeMillis() - started > MAX_RUNTIME_MS) {
             PathTraceMod.LOG.error("[autoshot] timed out in stage " + stage);
             mc.shutdown();
