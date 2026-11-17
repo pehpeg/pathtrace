@@ -32,9 +32,11 @@ import java.nio.FloatBuffer;
  * <ol>
  *   <li>copy the frame's colour (fullbright = albedo) and depth</li>
  *   <li>probe: trace a small sphere of rays from the eye (used to light the hand)</li>
- *   <li>trace: per pixel, sun + point lights (direct) and diffuse bounces (indirect), at reduced resolution,
- *       blended with the reprojected history</li>
- *   <li>denoise: 4 a-trous wavelet passes (indirect), 2 for direct</li>
+ *   <li>trace: diffuse bounces and sky light (indirect) at reduced resolution, blended with the
+ *       reprojected history</li>
+ *   <li>denoise: 4 a-trous wavelet passes over the indirect light</li>
+ *   <li>direct: sun and point light shadows at full resolution, one fixed ray per block-texture pixel,
+ *       no randomness (so no noise and no smearing)</li>
  *   <li>auto exposure: average log luminance, smoothed over time</li>
  *   <li>composite: edge-aware upsample, multiply by albedo, tonemap</li>
  * </ol>
@@ -46,7 +48,7 @@ final class PathTraceRenderer {
     private final VoxelVolume volume = new VoxelVolume();
     private final LightCollector lights = new LightCollector();
 
-    private ShaderProgram traceSh, atrousSh, compositeSh, probeSh, handSh, lumSh, exposureSh;
+    private ShaderProgram traceSh, atrousSh, directSh, compositeSh, probeSh, handSh, lumSh, exposureSh;
     private boolean shaderFailed;
 
     private int width = -1, height = -1, traceW = -1, traceH = -1;
@@ -56,6 +58,7 @@ final class PathTraceRenderer {
     private final RenderTarget[] probe = new RenderTarget[2];
     private final RenderTarget[] expo = new RenderTarget[2];
     private RenderTarget lum;
+    private RenderTarget direct;
     private int cur;
     private int frame;
     private boolean hasHistory;
@@ -184,11 +187,9 @@ final class PathTraceRenderer {
         bind2D(0, depthTex);
         bind2D(2, accum[prev].tex[0]);
         bind2D(3, accum[prev].tex[1]);
-        bind2D(4, accum[prev].tex[2]);
         traceSh.set("depthTex", 0);
         traceSh.set("histIndirect", 2);
-        traceSh.set("histDirect", 3);
-        traceSh.set("histGeom", 4);
+        traceSh.set("histGeom", 3);
         traceSh.setMatrix("invProj", invProj);
         traceSh.setMatrix("invView", invView);
         traceSh.setMatrix("prevProj", prevProj);
@@ -197,18 +198,16 @@ final class PathTraceRenderer {
         traceSh.set("prevEye", pcx + prevEyeRel[0], pcy + prevEyeRel[1], pcz + prevEyeRel[2]);
         traceSh.set("hasHistory", hasHistory ? 1f : 0f);
         traceSh.set("maxAccumIndirect", (float) PTConfig.maxAccumulation);
-        traceSh.set("maxAccumDirect", (float) PTConfig.maxAccumulationDirect);
         traceSh.set("bounces", PTConfig.bounces);
         traceSh.set("depthTexel", 1f / width, 1f / height);
         traceSh.set("traceRes", (float) traceW, (float) traceH);
         drawQuad();
 
-        // 4. denoise
-        int indTex = accum[cur].tex[0], dirTex = accum[cur].tex[1], geomTex = accum[cur].tex[2];
+        // 4. denoise the bounce light
+        int indTex = accum[cur].tex[0], geomTex = accum[cur].tex[1];
         if (PTConfig.denoise) {
             atrousSh.use();
             atrousSh.set("inIndirect", 2);
-            atrousSh.set("inDirect", 3);
             atrousSh.set("geomTex", 4);
             atrousSh.set("texel", 1f / traceW, 1f / traceH);
             bind2D(4, geomTex);
@@ -216,14 +215,25 @@ final class PathTraceRenderer {
                 RenderTarget dst = filt[it & 1];
                 dst.bind();
                 bind2D(2, indTex);
-                bind2D(3, dirTex);
                 atrousSh.set("stepSize", (float) (1 << it));
-                atrousSh.set("filterDirect", it < 2 ? 1f : 0f);
                 drawQuad();
                 indTex = dst.tex[0];
-                dirTex = dst.tex[1];
             }
         }
+
+        // 4b. direct light, full resolution, deterministic
+        direct.bind();
+        directSh.use();
+        setCommon(directSh);
+        bind2D(0, depthTex);
+        directSh.set("depthTex", 0);
+        directSh.setMatrix("invProj", invProj);
+        directSh.setMatrix("invView", invView);
+        directSh.set("depthTexel", 1f / width, 1f / height);
+        directSh.set("shadowedLights", PTConfig.shadowedLights);
+        directSh.set("pixelShadows", PTConfig.pixelShadows ? 1f : 0f);
+        drawQuad();
+        int dirTex = direct.tex[0];
 
         // 5. auto exposure
         int expTex = 0;
@@ -443,6 +453,7 @@ final class PathTraceRenderer {
         try {
             traceSh = ShaderProgram.load(VSH, "trace.fsh");
             atrousSh = ShaderProgram.load(VSH, "atrous.fsh");
+            directSh = ShaderProgram.load(VSH, "direct.fsh");
             compositeSh = ShaderProgram.load(VSH, "composite.fsh");
             probeSh = ShaderProgram.load(VSH, "probe.fsh");
             handSh = ShaderProgram.load(VSH, "hand.fsh");
@@ -459,10 +470,10 @@ final class PathTraceRenderer {
     }
 
     private void deleteShaders() {
-        for (ShaderProgram s : new ShaderProgram[]{traceSh, atrousSh, compositeSh, probeSh, handSh, lumSh, exposureSh}) {
+        for (ShaderProgram s : new ShaderProgram[]{traceSh, atrousSh, directSh, compositeSh, probeSh, handSh, lumSh, exposureSh}) {
             if (s != null) s.delete();
         }
-        traceSh = atrousSh = compositeSh = probeSh = handSh = lumSh = exposureSh = null;
+        traceSh = atrousSh = directSh = compositeSh = probeSh = handSh = lumSh = exposureSh = null;
     }
 
     private void ensureTargets(int w, int h) {
@@ -476,11 +487,12 @@ final class PathTraceRenderer {
         sceneTex = makeTex(GL11.GL_RGBA8, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, w, h);
         depthTex = makeTex(GL14.GL_DEPTH_COMPONENT24, GL11.GL_DEPTH_COMPONENT, GL11.GL_UNSIGNED_INT, w, h);
         for (int i = 0; i < 2; i++) {
-            accum[i] = new RenderTarget(tw, th, 3, GL11.GL_NEAREST);   // indirect, direct, geometry
-            filt[i] = new RenderTarget(tw, th, 2, GL11.GL_NEAREST);    // indirect, direct
+            accum[i] = new RenderTarget(tw, th, 2, GL11.GL_NEAREST);   // indirect, geometry
+            filt[i] = new RenderTarget(tw, th, 1, GL11.GL_NEAREST);    // filtered indirect
             probe[i] = new RenderTarget(8, 9, 1, GL11.GL_NEAREST);     // 64 directions + sun visibility row
             expo[i] = new RenderTarget(1, 1, 1, GL11.GL_NEAREST);
         }
+        direct = new RenderTarget(w, h, 1, GL11.GL_NEAREST);
         lum = new RenderTarget(64, 64, 1, GL11.GL_NEAREST_MIPMAP_NEAREST);
         bind2D(0, lum.tex[0]);
         GL30.glGenerateMipmap(GL11.GL_TEXTURE_2D);
@@ -500,7 +512,8 @@ final class PathTraceRenderer {
             accum[i] = filt[i] = probe[i] = expo[i] = null;
         }
         if (lum != null) lum.delete();
-        lum = null;
+        if (direct != null) direct.delete();
+        lum = direct = null;
     }
 
     private static int makeTex(int internal, int format, int type, int w, int h) {

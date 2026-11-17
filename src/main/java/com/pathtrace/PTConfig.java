@@ -20,9 +20,12 @@ public class PTConfig {
     @Config.RangeInt(min = 1, max = 256)
     public static int maxAccumulation = 32;
 
-    @Config.Comment("Frames averaged for direct light (sun, torches, dynamic lights). Keep low so moving lights stay snappy.")
-    @Config.RangeInt(min = 1, max = 64)
-    public static int maxAccumulationDirect = 8;
+    @Config.Comment("Compute shadows once per block-texture pixel: crisp pixel-art shadow edges that never flicker.")
+    public static boolean pixelShadows = true;
+
+    @Config.Comment("How many of the strongest nearby block/dynamic lights get an exact shadow per pixel (weaker ones share theirs).")
+    @Config.RangeInt(min = 0, max = 4)
+    public static int shadowedLights = 4;
 
     @Config.Comment("Edge-aware wavelet denoiser.")
     public static boolean denoise = true;

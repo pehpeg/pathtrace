@@ -1,5 +1,5 @@
 #version 120
-// PathTrace - upsample the lighting edge-aware to full resolution, apply it to the
+// PathTrace - upsample the bounce light edge-aware, add the full-res direct light, apply both to the
 // (fullbright) frame Minecraft drew, expose and tonemap.
 
 varying vec2 uv;
@@ -35,7 +35,6 @@ void main() {
     vec2 base = floor(pp);
     vec2 f = pp - base;
     vec3 ind = vec3(0.0);
-    vec3 dir = vec3(0.0);
     float ws = 0.0;
     for (int k = 0; k < 4; k++) {
         vec2 o = vec2(mod(float(k), 2.0), floor(float(k) * 0.5));
@@ -45,16 +44,14 @@ void main() {
         float bw = (o.x > 0.5 ? f.x : 1.0 - f.x) * (o.y > 0.5 ? f.y : 1.0 - f.y);
         float w = bw * exp(-abs(g.w - dist) / (0.02 * dist + 0.03)) + 1e-5;
         ind += texture2D(indirectTex, tc).rgb * w;
-        dir += texture2D(directTex, tc).rgb * w;
         ws += w;
     }
     if (ws > 0.0) {
         ind /= ws;
-        dir /= ws;
     } else {
         ind = texture2D(indirectTex, uv).rgb;
-        dir = texture2D(directTex, uv).rgb;
     }
+    vec3 dir = texture2D(directTex, uv).rgb;
 
     float e = exposure * (autoExposure > 0.5 ? texture2D(exposureTex, vec2(0.5)).r : 1.0);
     vec3 albedo = pow(scene, vec3(2.2));

@@ -8,7 +8,8 @@ Real-time path traced lighting for **Minecraft 1.12.2** (Forge 14.23.5.x, client
 - **Block lights** (torches, glowstone, lava, sea lanterns…) sampled directly for clean, coloured light
 - **Dynamic lights**: held torches and other light sources, dropped items, burning mobs, blazes, fireballs
 - **Lit first-person hand and held item**
-- Wavelet denoiser, temporal accumulation and auto exposure
+- **Noise-free, pixel-snapped shadows** from the sun and the strongest nearby lights
+- Wavelet denoiser for bounce light, temporal accumulation and auto exposure
 
 ## Download
 
@@ -42,7 +43,8 @@ Mods → PathTrace → Config, or `config/pathtrace.cfg`.
 | `renderScale` | 0.5 | Resolution of the tracer. The result is upscaled edge-aware. **Lower it first if FPS is low** |
 | `bounces` | 1 | 0 = direct light only, 2–3 = brighter interiors, slower |
 | `maxAccumulation` | 32 | Frames averaged for bounce/sky light |
-| `maxAccumulationDirect` | 8 | Frames averaged for sun and point lights. Keeps moving lights responsive |
+| `pixelShadows` | true | Shadows computed once per block-texture pixel: crisp, pixel-art edges with no flicker |
+| `shadowedLights` | 4 | Strongest nearby lights that get an exact shadow per pixel |
 | `denoise` | true | Edge-aware wavelet denoiser |
 | `autoExposure` | true | Eye adaptation |
 | `exposure`, `saturation` | 1.0, 1.1 | Grading |
@@ -56,11 +58,14 @@ Mods → PathTrace → Config, or `config/pathtrace.cfg`.
 1. Minecraft draws the world as usual, but with a white lightmap, which leaves plain surface colours and depth.
 2. A 128³ block grid around the camera is kept on the GPU as a 3D texture, plus a coarse 32³ occupancy grid
    for skipping empty space. Block changes and chunk loads are pushed in immediately.
-3. `trace.fsh` rebuilds each pixel's position from depth. It traces the sun shadow, samples one point light
-   (block lights and dynamic lights, chosen by importance), and follows diffuse bounces through the grid.
-   Direct and indirect light go into separate buffers, each blended with reprojected history.
-4. `atrous.fsh` denoises in 4 passes. `composite.fsh` upsamples, applies albedo, exposure and an ACES tonemap.
-5. The hand is drawn by the mod and relit (`hand.fsh`) from a 64-direction light probe traced at the eye.
+3. `direct.fsh` (full resolution, no randomness) gives each block-texture pixel one fixed sun shadow ray and
+   one shadow ray for each of the 4 strongest nearby lights. Weaker lights share those lights' visibility.
+   Because nothing is random, direct light has no noise and needs no averaging over frames.
+   Pixel-snapped shadows are an idea from [Vibrancy](https://github.com/TheTypholorian/vibrancy) (MIT).
+4. `trace.fsh` (reduced resolution) follows diffuse bounces and sky light through the grid and blends them with
+   reprojected history. `atrous.fsh` denoises that in 4 passes.
+5. `composite.fsh` upsamples the bounce light, adds direct light, and applies albedo, exposure and an ACES tonemap.
+6. The hand is drawn by the mod and relit (`hand.fsh`) from a 64-direction light probe traced at the eye.
 
 ## Limitations
 
