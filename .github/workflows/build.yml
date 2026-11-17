@@ -54,3 +54,58 @@ jobs:
           gh release delete latest --yes --cleanup-tag || true
           gh release create latest "$JAR" --prerelease --target "$GITHUB_SHA" \
             --title "Latest build" --notes "Automatic build of ${GITHUB_SHA::7}. Drop the jar into .minecraft/mods (Forge 1.12.2)."
+
+  screenshots:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: |
+            8
+            21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install virtual display and software OpenGL
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb mesa-utils libgl1-mesa-dri x11-xserver-utils \
+            libxxf86vm1 libxrandr2 libxcursor1 libxi6 libxtst6
+
+      - name: Play Minecraft and take screenshots
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          GALLIUM_DRIVER: llvmpipe
+        run: |
+          mkdir -p run/config out
+          printf 'enabled=false\n' > run/config/splash.properties
+          xvfb-run -a -s "-screen 0 1280x720x24" glxinfo -B > out/glxinfo.txt 2>&1 || true
+          timeout 2400 xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew runClient -Pautoshot --no-daemon > out/gradle.log 2>&1 || echo "game exited with $?"
+          cp run/screenshots/*.png out/ 2>/dev/null || true
+          cp run/logs/latest.log out/ 2>/dev/null || true
+          tail -n 30 out/gradle.log
+          ls -la out
+
+      - name: Publish to the screenshots branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd out
+          {
+            echo "# PathTrace screenshots"
+            echo
+            echo "Taken automatically by CI for commit ${GITHUB_SHA::7}, using software OpenGL (llvmpipe)."
+            echo
+            for f in *.png; do [ -e "$f" ] && echo "## ${f%.png}" && echo && echo "![${f%.png}]($f)" && echo; done
+          } > README.md
+          git init -q
+          git checkout -q -b screenshots
+          git add -A
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" commit -q -m "Screenshots for ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" screenshots

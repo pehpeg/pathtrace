@@ -31,7 +31,16 @@ public final class ClientHandler {
         ClientRegistry.registerKeyBinding(TOGGLE);
         ClientRegistry.registerKeyBinding(RELOAD);
         MinecraftForge.EVENT_BUS.register(new ClientHandler());
+        if (AutoShot.requested()) {
+            PathTraceMod.LOG.info("PathTrace autoshot test mode enabled");
+            MinecraftForge.EVENT_BUS.register(new AutoShot());
+        }
         PathTraceMod.LOG.info("PathTrace loaded. P = toggle, O = reload shaders.");
+    }
+
+    static void setEnabled(boolean on) {
+        if (enabled != on) RENDERER.resetHistory();
+        enabled = on;
     }
 
     static void chat(String msg) {
