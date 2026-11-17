@@ -52,13 +52,16 @@ Mods → PathTrace → Config, or `config/pathtrace.cfg`.
 | `pointLightStrength`, `emissiveStrength` | 2.5, 2.5 | Block light and glow brightness |
 | `dynamicLights` | true | Lights from entities and items |
 | `litHand` | true | Path traced lighting on the first-person hand |
+| `lodShadows` | true | Shadows beyond the detailed 128-block grid, from a coarser grid out to the render distance |
 | `debugView` | 0 | 1 = direct light only, 2 = bounce light only, 3 = surface normals |
 
 ## How it works
 
 1. Minecraft draws the world as usual, but with a white lightmap, which leaves plain surface colours and depth.
 2. A 128³ block grid around the camera is kept on the GPU as a 3D texture, plus a coarse 32³ occupancy grid
-   for skipping empty space. Block changes and chunk loads are pushed in immediately.
+   for skipping empty space. A second, coarser 128³ grid (2–4 blocks per cell) covers the whole render distance
+   so shadow rays can continue past the detailed grid. Light sources are indexed per chunk and sorted into
+   8×8×8-block cells, so every pixel only checks the lights near it, out to the render distance. Block changes and chunk loads are pushed in immediately.
 3. `gbuffer.fsh` traces each pixel's view ray through the grid to get the exact surface position and
    direction, checked against the depth buffer (which is used directly for mobs, slabs, plants…).
 4. `direct.fsh` (full resolution, no randomness) gives each block-texture pixel one fixed sun shadow ray and
@@ -80,5 +83,6 @@ Run the same thing locally with `gradlew runClient -Pautoshot`.
 
 - In the voxel grid, only full opaque blocks, leaves and light sources block light. Slabs, stairs, glass,
   fences and mobs don't cast shadows, but they do receive light.
-- Beyond about 64 blocks, surfaces get sky and sun light without traced shadows.
+- Beyond about 64 blocks, shadows come from a coarser grid (2-block cells, 4 above render distance 8), so they
+  are blockier, and thin things (single blocks, fences) may not cast them.
 - Not compatible with OptiFine shaders.

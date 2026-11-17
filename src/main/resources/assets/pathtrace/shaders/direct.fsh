@@ -18,6 +18,8 @@ float sunVisibilityHard(vec3 p) {
     float r = traceRay(p, lightDir, 1.0e6, hc, hn, t);
     if (r > 0.5) return 0.0;
     if (r < -0.5) return 1.0;
+    // left the detailed grid (or started outside it): continue in the far grid
+    if (lodEnabled > 0.5) return lodBlocked(p + lightDir * t, lightDir, 1.0e6, t <= 0.0 ? lodCell * 1.5 : 0.0) ? 0.0 : 1.0;
     return escapeVisibility(p + lightDir * t);
 }
 

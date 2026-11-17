@@ -70,6 +70,9 @@ final class AutoShot {
             new Shot("17_night_far_tower_pathtrace", NIGHT, false, true, false, 0, FAR, FAR_T),
             new Shot("18_night_far_tower_vanilla", NIGHT, false, false, false, 0, FAR, FAR_T),
             new Shot("19_night_far_tower_debug_direct", NIGHT, false, true, false, 1, FAR, FAR_T),
+            new Shot("20_day_far_tower_pathtrace", DAY, false, true, false, 0, FAR, FAR_T),
+            new Shot("21_day_far_tower_vanilla", DAY, false, false, false, 0, FAR, FAR_T),
+            new Shot("22_day_far_tower_debug_direct", DAY, false, true, false, 1, FAR, FAR_T),
     };
 
     private int index = -1;          // -1 = not in a world yet

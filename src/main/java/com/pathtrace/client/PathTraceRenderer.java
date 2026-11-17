@@ -50,6 +50,7 @@ final class PathTraceRenderer {
     private final LightCollector lights = new LightCollector();
     private final EmitterIndex emitters = new EmitterIndex();
     private final LightGrid lightGrid = new LightGrid();
+    private final LodVolume lod = new LodVolume();
 
     private ShaderProgram gbufferSh, traceSh, atrousSh, directSh, compositeSh, probeSh, handSh, lumSh, exposureSh;
     private boolean shaderFailed;
@@ -111,6 +112,7 @@ final class PathTraceRenderer {
         volume.invalidate();
         emitters.reset(null);
         lightGrid.invalidate();
+        lod.invalidate();
         hasHistory = false;
     }
 
@@ -170,6 +172,7 @@ final class PathTraceRenderer {
         lights.collect(world, cam, pt, volume, cx, cy, cz, mc.gameSettings.thirdPersonView == 0);
         emitters.process(world, 96);
         lightGrid.update(emitters, cx, cy, cz, mc.gameSettings.renderDistanceChunks);
+        if (PTConfig.lodShadows) lod.update(emitters, cx, cz, mc.gameSettings.renderDistanceChunks);
         computeLighting(world, cam, pt);
 
         // 1. grab colour + depth of the frame vanilla just drew
@@ -416,6 +419,14 @@ final class PathTraceRenderer {
         s.set("gridCells", (float) lightGrid.gx, (float) lightGrid.gy, (float) lightGrid.gz);
         s.set("lightTexSize", lightGrid.lightTexWidth(), lightGrid.lightTexHeight());
         s.set("cellTexSize", lightGrid.cellTexWidth(), (float) lightGrid.cellTexH);
+        boolean lodOn = PTConfig.lodShadows && lod.isBuilt();
+        if (lodOn) bindRaw3D(10, lod.texture());
+        s.set("lodTex", 10);
+        s.set("lodEnabled", lodOn ? 1f : 0f);
+        s.set("lodCell", (float) lod.cell);
+        s.set("lodSize", (float) LodVolume.SIZE);
+        s.set("lodOrigin", (float) (lod.ox - volume.originX()), (float) (0 - volume.originY()),
+                (float) (lod.oz - volume.originZ()));
     }
 
     private void setGrading(ShaderProgram s) {
@@ -602,6 +613,13 @@ final class PathTraceRenderer {
     private static void bindRaw(int unit, int tex) {
         GL13.glActiveTexture(GL13.GL_TEXTURE0 + unit);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, tex);
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+        GlStateManager.setActiveTexture(GL13.GL_TEXTURE0);
+    }
+
+    private static void bindRaw3D(int unit, int tex) {
+        GL13.glActiveTexture(GL13.GL_TEXTURE0 + unit);
+        GL11.glBindTexture(GL12.GL_TEXTURE_3D, tex);
         GL13.glActiveTexture(GL13.GL_TEXTURE0);
         GlStateManager.setActiveTexture(GL13.GL_TEXTURE0);
     }

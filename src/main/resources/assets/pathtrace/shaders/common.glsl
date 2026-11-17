@@ -31,6 +31,14 @@ float lightMinDist = 0.0;            // falloff never gets brighter than at this
 
 #define MAX_STEPS 160
 
+// Far shadow grid (LodVolume.java): 128^3 cells of lodCell blocks, y from world 0
+uniform sampler3D lodTex;
+uniform vec3 lodOrigin;       // volume space
+uniform float lodCell;
+uniform float lodSize;
+uniform float lodEnabled;
+#define LOD_STEPS 200
+
 // ------------------------------------------------------------------ random numbers
 // Animated interleaved gradient noise: spreads error evenly in screen space and over
 // time, which the temporal filter and denoiser clean up much better than white noise.
@@ -143,6 +151,47 @@ float traceRay(vec3 ro, vec3 rd, float maxT, out vec3 hitCell, out vec3 hitNorma
     return -1.0;
 }
 
+// True if the coarse far grid blocks the segment p -> p + dir * maxT.
+// Hits closer than `skip` are ignored (avoids a far surface shadowing itself).
+bool lodBlocked(vec3 p, vec3 dir, float maxT, float skip) {
+    if (lodEnabled < 0.5 || maxT <= 0.0) return false;
+    vec3 ro = (p - lodOrigin) / lodCell;
+    float mT = maxT / lodCell;
+    float sk = skip / lodCell;
+    vec3 cell = floor(ro);
+    if (any(lessThan(cell, vec3(0.0))) || any(greaterThanEqual(cell, vec3(lodSize)))) return false;
+    vec3 stp = sign(dir);
+    vec3 invd = 1.0 / max(abs(dir), vec3(1e-6));
+    vec3 tMax = abs(cell + step(0.0, dir) - ro) * invd;
+    float t = 0.0;
+    for (int i = 0; i < LOD_STEPS; i++) {
+        if (tMax.x < tMax.y && tMax.x < tMax.z) {
+            cell.x += stp.x; t = tMax.x; tMax.x += invd.x;
+        } else if (tMax.y < tMax.z) {
+            cell.y += stp.y; t = tMax.y; tMax.y += invd.y;
+        } else {
+            cell.z += stp.z; t = tMax.z; tMax.z += invd.z;
+        }
+        if (t > mT) return false;
+        if (any(lessThan(cell, vec3(0.0))) || any(greaterThanEqual(cell, vec3(lodSize)))) return false;
+        if (t > sk && texture3D(lodTex, (cell + 0.5) / lodSize).r > 0.5) return true;
+    }
+    return false;
+}
+
+// Shadow ray: the detailed grid near the camera, then the far grid.
+// Returns true if something blocks p -> p + dir * maxT. A hit on `targetCell` (the light's own
+// block) doesn't count.
+bool shadowBlocked(vec3 p, vec3 dir, float maxT, vec3 targetCell) {
+    vec3 hc; vec3 hn; float t;
+    float r = traceRay(p, dir, maxT, hc, hn, t);
+    if (r > 0.5 && r < 1.5) return any(notEqual(hc, targetCell));
+    if (r < -0.5 || r > 1.5) return false;
+    // left the detailed grid at distance t (t == 0: started outside it)
+    float skip = t <= 0.0 ? lodCell * 1.5 : 0.0;
+    return lodBlocked(p + dir * t, dir, maxT - t - lodCell, skip);
+}
+
 // ------------------------------------------------------------------ sky + sun
 // A ray that leaves the grid sees sky only if it is above the terrain height there.
 float escapeVisibility(vec3 p) {
@@ -163,6 +212,7 @@ float sunVisibility(vec3 p) {
     float r = traceRay(p, d, 1.0e6, hc, hn, t);
     if (r > 0.5) return 0.0;
     if (r < -0.5) return 1.0;
+    if (lodEnabled > 0.5) return lodBlocked(p + d * t, d, 1.0e6, t <= 0.0 ? lodCell * 1.5 : 0.0) ? 0.0 : 1.0;
     return escapeVisibility(p + d * t);
 }
 
@@ -271,10 +321,7 @@ float lightVisible(vec3 p, vec3 lp) {
     vec3 L = lp - p;
     float d = length(L);
     if (d < 1e-3) return 1.0;
-    vec3 hc; vec3 hn; float t;
-    float r = traceRay(p, L / d, d - 0.05, hc, hn, t);
-    if (r > 0.5 && r < 1.5 && any(notEqual(hc, floor(lp)))) return 0.0;
-    return 1.0;
+    return shadowBlocked(p, L / d, d - 0.05, floor(lp)) ? 0.0 : 1.0;
 }
 
 // All point lights at p. With shadows, the light picked in proportion to its contribution

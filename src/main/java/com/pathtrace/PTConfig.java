@@ -63,6 +63,9 @@ public class PTConfig {
     @Config.Comment("Light the first-person hand and held item with the path traced lighting.")
     public static boolean litHand = true;
 
+    @Config.Comment("Shadows beyond the detailed 128-block grid, from a coarser grid (2-4 block cells) out to the render distance.")
+    public static boolean lodShadows = true;
+
     @Config.Comment("Debug view: 0 = normal, 1 = direct light only, 2 = bounce/sky light only, 3 = surface normals.")
     @Config.RangeInt(min = 0, max = 3)
     public static int debugView = 0;

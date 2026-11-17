@@ -17,11 +17,17 @@ import java.util.Map;
  * the voxel volume (which only covers 128 blocks). Sections are (re)scanned when chunks load or
  * blocks change, a budgeted number per frame.
  * Packed entry: x | y << 4 | z << 8 | light << 12 | colour << 16  (x/y/z inside the section)
+ * <p>
+ * The same scan records which 2x2x2-block cells of each section are mostly solid (5+ of 8 blocks),
+ * as 512 bits; {@link LodVolume} builds the far shadow grid from those.
  */
 final class EmitterIndex {
     private static final int[] EMPTY = new int[0];
 
     private final HashMap<Long, int[]> sections = new HashMap<>();
+    private final HashMap<Long, long[]> occupancy = new HashMap<>();   // absent = no solid cells
+    private final ArrayDeque<Long> changedOccupancy = new ArrayDeque<>();
+    private final int[] cellCount = new int[512];
     private final ArrayDeque<Long> queue = new ArrayDeque<>();
     private final HashSet<Long> queued = new HashSet<>();
     private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -41,6 +47,8 @@ final class EmitterIndex {
     void reset(World w) {
         world = w;
         sections.clear();
+        occupancy.clear();
+        changedOccupancy.clear();
         queue.clear();
         queued.clear();
         version++;
@@ -75,10 +83,12 @@ final class EmitterIndex {
 
     /** Drop sections far outside the area of interest (unloaded chunks, places we left). */
     void prune(int cx, int cz, int radius) {
-        sections.keySet().removeIf(k -> {
+        java.util.function.Predicate<Long> far = k -> {
             BlockPos s = BlockPos.fromLong(k);
             return Math.abs((s.getX() << 4) + 8 - cx) > radius || Math.abs((s.getZ() << 4) + 8 - cz) > radius;
-        });
+        };
+        sections.keySet().removeIf(far);
+        occupancy.keySet().removeIf(far);
     }
 
     void process(World w, int budget) {
@@ -95,16 +105,24 @@ final class EmitterIndex {
         Chunk chunk = world.getChunkProvider().getLoadedChunk(sx, sz);
         if (chunk == null) {
             if (sections.remove(k) != null) version++;
+            if (occupancy.remove(k) != null) changedOccupancy.add(k);
             return;
         }
         ExtendedBlockStorage es = chunk.getBlockStorageArray()[sy];
         int n = 0;
+        java.util.Arrays.fill(cellCount, 0);
+        boolean anySolid = false;
         if (es != null && !es.isEmpty()) {
             for (int y = 0; y < 16; y++)
                 for (int z = 0; z < 16; z++)
                     for (int x = 0; x < 16; x++) {
                         IBlockState st = es.get(x, y, z);
-                        if (st.getMaterial() == Material.AIR) continue;
+                        Material m = st.getMaterial();
+                        if (m == Material.AIR) continue;
+                        if (st.isOpaqueCube() || m == Material.LEAVES) {
+                            cellCount[((z >> 1) * 8 + (y >> 1)) * 8 + (x >> 1)]++;
+                            anySolid = true;
+                        }
                         pos.setPos((sx << 4) + x, (sy << 4) + y, (sz << 4) + z);
                         int light = st.getLightValue(world, pos);
                         if (light <= 0) continue;
@@ -113,9 +131,30 @@ final class EmitterIndex {
                                 | LightColors.forBlock(st.getBlock()) << 16;
                     }
         }
+        long[] mask = null;
+        if (anySolid) {
+            mask = new long[8];
+            for (int c = 0; c < 512; c++) if (cellCount[c] >= 5) mask[c >> 6] |= 1L << (c & 63);
+            boolean any = false;
+            for (long l : mask) any |= l != 0;
+            if (!any) mask = null;
+        }
+        long[] oldMask = mask == null ? occupancy.remove(k) : occupancy.put(k, mask);
+        if (!java.util.Arrays.equals(oldMask, mask)) changedOccupancy.add(k);
+
         int[] entries = n == 0 ? EMPTY : java.util.Arrays.copyOf(scratch, n);
         int[] old = sections.put(k, entries);
         if (old == null ? entries.length > 0 : !java.util.Arrays.equals(old, entries)) version++;
+    }
+
+    /** 512-bit solid mask of 2x2x2 cells for a section, or null if it has none. Bit index (z*8+y)*8+x. */
+    long[] occupancy(int sx, int sy, int sz) {
+        return occupancy.get(key(sx, sy, sz));
+    }
+
+    /** Sections whose occupancy changed since the last call (consumed). */
+    Long pollChangedOccupancy() {
+        return changedOccupancy.pollFirst();
     }
 
     interface Visitor {
