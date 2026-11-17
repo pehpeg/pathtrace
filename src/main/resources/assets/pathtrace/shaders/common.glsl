@@ -189,11 +189,13 @@ float traceRay(vec3 ro, vec3 rd, float maxT, out vec3 hitCell, out vec3 hitNorma
         }
         if (!insideVolume(cell)) { hitCell = cell; return 0.0; }
         if (hitT > maxT) return 2.0;
-        if (isSolid(fetchVoxel(cell))) {
+        vec4 vox = fetchVoxel(cell);
+        if (isSolid(vox)) {
             vec3 uvw = (cell + 0.5) / volumeSize;
             vec4 ma = texture3D(maskTexA, uvw);
             vec4 mb = texture3D(maskTexB, uvw);
             if (dot(ma + mb, vec4(1.0)) <= 0.0) { hitCell = cell; return 1.0; }   // full block
+            if (emission(vox) > 0.0) continue;   // small light sources (torches...) don't cast shadows
             float tm; vec3 nm;
             if (traceMicro(ro, rd, invd, stp, cell, hitT, hitNormal, ma, mb, tm, nm)) {
                 if (tm > maxT) return 2.0;

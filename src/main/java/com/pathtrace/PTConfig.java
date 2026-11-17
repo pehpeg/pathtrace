@@ -68,7 +68,7 @@ public class PTConfig {
 
     @Config.Comment("Bloom strength.")
     @Config.RangeDouble(min = 0.0, max = 5.0)
-    public static double bloomStrength = 0.6;
+    public static double bloomStrength = 1.6;
 
     @Config.Comment("Shadows beyond the detailed 128-block grid, from a coarser grid (2-4 block cells) out to the render distance.")
     public static boolean lodShadows = true;

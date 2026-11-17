@@ -52,7 +52,7 @@ Mods → PathTrace → Config, or `config/pathtrace.cfg`.
 | `pointLightStrength`, `emissiveStrength` | 2.5, 2.5 | Block light and glow brightness |
 | `dynamicLights` | true | Lights from entities and items |
 | `litHand` | true | Path traced lighting on the first-person hand |
-| `bloom`, `bloomStrength` | true, 0.6 | Soft glow around light sources (flames, glowstone, lava…) |
+| `bloom`, `bloomStrength` | true, 1.6 | Soft glow around light sources (flames, glowstone, lava…) |
 | `lodShadows` | true | Shadows beyond the detailed 128-block grid, from a coarser grid out to the render distance |
 | `debugView` | 0 | 1 = direct light only, 2 = bounce light only, 3 = surface normals |
 
