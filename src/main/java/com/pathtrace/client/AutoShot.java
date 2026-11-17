@@ -35,9 +35,14 @@ final class AutoShot {
     private static final class Shot {
         final String name; final long time; final boolean torch, enabled, hud;
         final int debug; final double[] cam, target;
+        boolean lod = true;
         Shot(String name, long time, boolean torch, boolean enabled, boolean hud, int debug, double[] cam, double[] target) {
             this.name = name; this.time = time; this.torch = torch; this.enabled = enabled; this.hud = hud;
             this.debug = debug; this.cam = cam; this.target = target;
+        }
+        Shot noLod() {
+            lod = false;
+            return this;
         }
     }
 
@@ -48,6 +53,8 @@ final class AutoShot {
     private static final double[] GROUND = {18.5, 0.0, -1.5}, GROUND_T = {15.0, 0.0, 3.0};
     // a lit tower ~85 blocks away: outside the 128-block voxel grid, inside render distance 8
     private static final double[] FAR = {16.0, 0.0, 10.0}, FAR_T = {2.0, 8.0, 89.0};
+    // raised, ~90 blocks from the tower, looking at the ground west of it where its shadow falls
+    private static final double[] FAR_HIGH = {12.0, 24.0, 2.0}, FAR_HIGH_T = {-14.0, 0.0, 90.0};
     private static final long DAY = 2000L, NIGHT = 18000L;
 
     private static final Shot[] SHOTS = {
@@ -73,6 +80,9 @@ final class AutoShot {
             new Shot("20_day_far_tower_pathtrace", DAY, false, true, false, 0, FAR, FAR_T),
             new Shot("21_day_far_tower_vanilla", DAY, false, false, false, 0, FAR, FAR_T),
             new Shot("22_day_far_tower_debug_direct", DAY, false, true, false, 1, FAR, FAR_T),
+            new Shot("23_day_far_shadow_lod", DAY, false, true, false, 0, FAR_HIGH, FAR_HIGH_T),
+            new Shot("24_day_far_shadow_no_lod", DAY, false, true, false, 0, FAR_HIGH, FAR_HIGH_T).noLod(),
+            new Shot("25_day_far_shadow_vanilla", DAY, false, false, false, 0, FAR_HIGH, FAR_HIGH_T),
     };
 
     private int index = -1;          // -1 = not in a world yet
@@ -145,6 +155,7 @@ final class AutoShot {
         stepStart = System.currentTimeMillis();
         mc.gameSettings.hideGUI = !shot.hud;
         PTConfig.debugView = shot.debug;
+        PTConfig.lodShadows = shot.lod;
         ClientHandler.setEnabled(shot.enabled);
         if (prev == null || prev.time != shot.time || prev.cam != shot.cam || prev.torch != shot.torch) {
             setupScene(mc.getIntegratedServer(), shot);
