@@ -280,6 +280,7 @@ final class PathTraceRenderer {
         compositeSh.set("exposureTex", 6);
         compositeSh.setMatrix("invProj", invProj);
         compositeSh.set("lowRes", (float) traceW, (float) traceH);
+        compositeSh.set("debugView", PTConfig.debugView);
         setGrading(compositeSh);
         drawQuad();
 
@@ -424,11 +425,16 @@ final class PathTraceRenderer {
         set(lightDir, x, y, z);
         set(lightColor, r * k, g * k, b * k);
 
+        // sky light: the sky's colour, but half desaturated (the vanilla sky colour is very blue)
         Vec3d s = world.getSkyColor(cam, pt);
+        float sr = (float) Math.pow(Math.max(0, s.x), 2.2);
+        float sg = (float) Math.pow(Math.max(0, s.y), 2.2);
+        float sb = (float) Math.pow(Math.max(0, s.z), 2.2);
+        float sl = 0.2126f * sr + 0.7152f * sg + 0.0722f * sb;
         set(skyColor,
-                (float) Math.pow(Math.max(0, s.x), 2.2) * sky + 0.004f,
-                (float) Math.pow(Math.max(0, s.y), 2.2) * sky + 0.005f,
-                (float) Math.pow(Math.max(0, s.z), 2.2) * sky + 0.008f);
+                lerp(sl, sr, 0.5f) * sky + 0.004f,
+                lerp(sl, sg, 0.5f) * sky + 0.005f,
+                lerp(sl, sb, 0.5f) * sky + 0.008f);
         set(ambient, 0.002f, 0.002f, 0.003f);
     }
 

@@ -47,7 +47,7 @@ public class PTConfig {
 
     @Config.Comment("Sky light strength.")
     @Config.RangeDouble(min = 0.0, max = 10.0)
-    public static double skyStrength = 1.4;
+    public static double skyStrength = 0.7;
 
     @Config.Comment("Glow of light-emitting blocks seen directly or via bounces.")
     @Config.RangeDouble(min = 0.0, max = 50.0)
@@ -62,6 +62,10 @@ public class PTConfig {
 
     @Config.Comment("Light the first-person hand and held item with the path traced lighting.")
     public static boolean litHand = true;
+
+    @Config.Comment("Debug view: 0 = normal, 1 = direct light only, 2 = bounce/sky light only, 3 = surface normals.")
+    @Config.RangeInt(min = 0, max = 3)
+    public static int debugView = 0;
 
     @Config.Comment("Voxel slices re-scanned per frame as a background safety net (block changes are picked up instantly anyway).")
     @Config.RangeInt(min = 0, max = 32)

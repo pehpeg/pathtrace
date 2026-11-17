@@ -20,6 +20,7 @@ uniform vec4 ptLightPos[MAX_LIGHTS];   // xyz position, w radius (blocks)
 uniform vec4 ptLightCol[MAX_LIGHTS];   // rgb intensity
 uniform int ptLightCount;
 uniform float neeRadius;               // emitting blocks closer than this are in the light list
+float lightMinDist = 0.0;              // falloff never gets brighter than at this distance
 
 #define MAX_STEPS 160
 
@@ -178,8 +179,9 @@ float lightTerm(int i, vec3 p, vec3 n, out vec3 contrib) {
     float d = sqrt(max(d2, 1e-4));
     float ndl = dot(n, L / d);
     if (ndl <= 0.0) return 0.0;
-    float x = 1.0 - d / lp.w;
-    contrib = ptLightCol[i].rgb * (ndl * x * x / (1.0 + 0.3 * d2));
+    float fd = max(d, lightMinDist);
+    float x = max(1.0 - fd / lp.w, 0.0);
+    contrib = ptLightCol[i].rgb * (ndl * x * x / (1.0 + 0.3 * fd * fd));
     return luminance(contrib);
 }
 

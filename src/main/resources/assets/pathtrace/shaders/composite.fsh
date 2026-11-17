@@ -15,6 +15,7 @@ uniform vec2 lowRes;
 uniform float exposure;
 uniform float autoExposure;
 uniform float saturation;
+uniform int debugView;
 
 vec3 aces(vec3 x) {
     return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
@@ -54,6 +55,15 @@ void main() {
     vec3 dir = texture2D(directTex, uv).rgb;
 
     float e = exposure * (autoExposure > 0.5 ? texture2D(exposureTex, vec2(0.5)).r : 1.0);
+    if (debugView == 1 || debugView == 2) {
+        vec3 l = aces((debugView == 1 ? dir : ind) * e * 0.5);
+        gl_FragColor = vec4(pow(l, vec3(1.0 / 2.2)), 1.0);
+        return;
+    }
+    if (debugView == 3) {
+        gl_FragColor = vec4(texture2D(geomTex, uv).xyz * 0.5 + 0.5, 1.0);
+        return;
+    }
     vec3 albedo = pow(scene, vec3(2.2));
     vec3 c = aces(albedo * (ind + dir) * e);
     c = pow(c, vec3(1.0 / 2.2));

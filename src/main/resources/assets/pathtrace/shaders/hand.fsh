@@ -35,6 +35,7 @@ void main() {
     float d = texture2D(handDepth, uv).r;
     if (d >= 1.0) discard;
     rngPix = gl_FragCoord.xy;
+    lightMinDist = 1.5;   // a held torch is right next to the hand: don't let it blow out
 
     vec3 vp = viewPos(uv);
     vec3 dx = pickSide(vp, uv + vec2(texel.x, 0.0), uv - vec2(texel.x, 0.0));
@@ -58,6 +59,7 @@ void main() {
 
     float sunVis = texture2D(probeTex, vec2(0.5 / 8.0, 8.5 / 9.0)).r;
     vec3 light = E + ambient + lightColor * max(dot(n, lightDir), 0.0) * sunVis + pointLights(P, n, false);
+    light = min(light, vec3(3.0));
 
     float e = exposure * (autoExposure > 0.5 ? texture2D(exposureTex, vec2(0.5)).r : 1.0);
     vec3 albedo = pow(texture2D(handColor, uv).rgb, vec3(2.2));
