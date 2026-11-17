@@ -2,7 +2,7 @@
 
 Real-time path traced lighting for **Minecraft 1.12.2** (Forge 14.23.5.x, client-side only).
 
-- **Sun and moon shadows** with soft edges, following time of day and weather
+- **Sun and moon shadows** following time of day and weather
 - **Sky light** blocked by terrain, so caves and interiors go dark naturally
 - **Bounce light** that picks up the colour of nearby blocks
 - **Block lights** (torches, glowstone, lava, sea lanterns…) sampled directly for clean, coloured light
