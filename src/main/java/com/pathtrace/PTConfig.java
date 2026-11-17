@@ -43,7 +43,7 @@ public class PTConfig {
 
     @Config.Comment("Sunlight strength.")
     @Config.RangeDouble(min = 0.0, max = 10.0)
-    public static double sunStrength = 2.0;
+    public static double sunStrength = 1.3;
 
     @Config.Comment("Sky light strength.")
     @Config.RangeDouble(min = 0.0, max = 10.0)
@@ -51,11 +51,11 @@ public class PTConfig {
 
     @Config.Comment("Glow of light-emitting blocks seen directly or via bounces.")
     @Config.RangeDouble(min = 0.0, max = 50.0)
-    public static double emissiveStrength = 4.0;
+    public static double emissiveStrength = 2.5;
 
     @Config.Comment("Strength of light cast by torches, glowstone, lava, held/dropped items etc.")
     @Config.RangeDouble(min = 0.0, max = 50.0)
-    public static double pointLightStrength = 6.0;
+    public static double pointLightStrength = 2.5;
 
     @Config.Comment("Light from held items, dropped items, burning mobs, blazes and fireballs.")
     public static boolean dynamicLights = true;

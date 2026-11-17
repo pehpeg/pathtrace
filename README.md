@@ -48,8 +48,8 @@ Mods → PathTrace → Config, or `config/pathtrace.cfg`.
 | `denoise` | true | Edge-aware wavelet denoiser |
 | `autoExposure` | true | Eye adaptation |
 | `exposure`, `saturation` | 1.0, 1.0 | Grading |
-| `sunStrength`, `skyStrength` | 2.0, 0.7 | Light balance |
-| `pointLightStrength`, `emissiveStrength` | 6.0, 4.0 | Block light and glow brightness |
+| `sunStrength`, `skyStrength` | 1.3, 0.7 | Light balance |
+| `pointLightStrength`, `emissiveStrength` | 2.5, 2.5 | Block light and glow brightness |
 | `dynamicLights` | true | Lights from entities and items |
 | `litHand` | true | Path traced lighting on the first-person hand |
 | `debugView` | 0 | 1 = direct light only, 2 = bounce light only, 3 = surface normals |
