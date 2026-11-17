@@ -17,6 +17,8 @@ uniform float exposure;
 uniform float autoExposure;
 uniform float saturation;
 uniform int debugView;
+uniform sampler2D bloomTex;
+uniform float bloomStrength;
 
 vec3 aces(vec3 x) {
     return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
@@ -26,7 +28,9 @@ void main() {
     vec3 scene = texture2D(sceneTex, uv).rgb;
     float d = texture2D(depthTex, uv).r;
     if (d >= 1.0) {
-        gl_FragColor = vec4(scene, 1.0);
+        vec3 b = texture2D(bloomTex, uv).rgb * bloomStrength;
+        float eb = exposure * (autoExposure > 0.5 ? texture2D(exposureTex, vec2(0.5)).r : 1.0);
+        gl_FragColor = vec4(scene + pow(aces(b * eb), vec3(1.0 / 2.2)), 1.0);
         return;
     }
     float dist = texture2D(gbufferTex, uv).w;
@@ -65,7 +69,7 @@ void main() {
         return;
     }
     vec3 albedo = pow(scene, vec3(2.2));
-    vec3 c = aces(albedo * (ind + dir) * e);
+    vec3 c = aces((albedo * (ind + dir) + texture2D(bloomTex, uv).rgb * bloomStrength) * e);
     c = pow(c, vec3(1.0 / 2.2));
     float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
     c = mix(vec3(l), c, saturation);

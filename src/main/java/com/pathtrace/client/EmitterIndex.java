@@ -16,7 +16,11 @@ import java.util.Map;
  * Every light-emitting block in the loaded chunks, per 16x16x16 chunk section, independent of
  * the voxel volume (which only covers 128 blocks). Sections are (re)scanned when chunks load or
  * blocks change, a budgeted number per frame.
- * Packed entry: x | y << 4 | z << 8 | light << 12 | colour << 16  (x/y/z inside the section)
+ * Packed entry: x | y << 4 | z << 8 | light << 12 | colour << 16 | offset << 19  (x/y/z inside the section)
+ * <p>
+ * offset (0..26, 13 = none) says which way the light is pushed out of its block: full glowing blocks
+ * and liquids (glowstone, sea lanterns, lava...) have their light placed just outside their open
+ * faces, so a light set flush into a floor or wall still lights the surfaces around it.
  * <p>
  * The same scan records which 2x2x2-block cells of each section are mostly solid (5+ of 8 blocks),
  * as 512 bits; {@link LodVolume} builds the far shadow grid from those.
@@ -127,8 +131,10 @@ final class EmitterIndex {
                         int light = st.getLightValue(world, pos);
                         if (light <= 0) continue;
                         if (n == scratch.length) scratch = java.util.Arrays.copyOf(scratch, n * 2);
+                        int offset = 13;
+                        if (st.isFullCube() || m.isLiquid()) offset = openFaces(pos, m);
                         scratch[n++] = x | y << 4 | z << 8 | Math.min(15, light) << 12
-                                | LightColors.forBlock(st.getBlock()) << 16;
+                                | LightColors.forBlock(st.getBlock()) << 16 | offset << 19;
                     }
         }
         long[] mask = null;
@@ -147,6 +153,27 @@ final class EmitterIndex {
         if (old == null ? entries.length > 0 : !java.util.Arrays.equals(old, entries)) version++;
     }
 
+    private final BlockPos.MutableBlockPos npos = new BlockPos.MutableBlockPos();
+
+    /** Direction code (dx+1) + 3(dy+1) + 9(dz+1) of the average open face of a block, 13 if none/all. */
+    private int openFaces(BlockPos p, Material self) {
+        int sx = 0, sy = 0, sz = 0;
+        for (net.minecraft.util.EnumFacing f : net.minecraft.util.EnumFacing.values()) {
+            net.minecraft.util.math.Vec3i d = f.getDirectionVec();
+            npos.setPos(p.getX() + d.getX(), p.getY() + d.getY(), p.getZ() + d.getZ());
+            IBlockState n = world.getBlockState(npos);
+            Material nm = n.getMaterial();
+            boolean open = nm == Material.AIR || (!n.isOpaqueCube() && !nm.isLiquid() && nm != self);
+            if (open) {
+                sx += d.getX();
+                sy += d.getY();
+                sz += d.getZ();
+            }
+        }
+        if (sx == 0 && sy == 0 && sz == 0) return 13;
+        return (Integer.signum(sx) + 1) + 3 * (Integer.signum(sy) + 1) + 9 * (Integer.signum(sz) + 1);
+    }
+
     /** 512-bit solid mask of 2x2x2 cells for a section, or null if it has none. Bit index (z*8+y)*8+x. */
     long[] occupancy(int sx, int sy, int sz) {
         return occupancy.get(key(sx, sy, sz));
@@ -158,7 +185,7 @@ final class EmitterIndex {
     }
 
     interface Visitor {
-        void accept(int x, int y, int z, int light, int color);
+        void accept(int x, int y, int z, int light, int color, int offset);
     }
 
     /** Visit all known emitters inside the block range (inclusive). */
@@ -172,7 +199,7 @@ final class EmitterIndex {
             for (int p : arr) {
                 int x = bx + (p & 15), y = by + ((p >> 4) & 15), z = bz + ((p >> 8) & 15);
                 if (x < x1 || x > x2 || y < y1 || y > y2 || z < z1 || z > z2) continue;
-                v.accept(x, y, z, (p >> 12) & 15, (p >> 16) & 7);
+                v.accept(x, y, z, (p >> 12) & 15, (p >> 16) & 7, (p >>> 19) & 31);
             }
         }
     }

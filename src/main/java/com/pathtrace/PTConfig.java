@@ -63,6 +63,13 @@ public class PTConfig {
     @Config.Comment("Light the first-person hand and held item with the path traced lighting.")
     public static boolean litHand = true;
 
+    @Config.Comment("Soft glow around light sources (torch flames, glowstone, lava...).")
+    public static boolean bloom = true;
+
+    @Config.Comment("Bloom strength.")
+    @Config.RangeDouble(min = 0.0, max = 5.0)
+    public static double bloomStrength = 0.6;
+
     @Config.Comment("Shadows beyond the detailed 128-block grid, from a coarser grid (2-4 block cells) out to the render distance.")
     public static boolean lodShadows = true;
 

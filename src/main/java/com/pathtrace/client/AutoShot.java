@@ -35,13 +35,17 @@ final class AutoShot {
     private static final class Shot {
         final String name; final long time; final boolean torch, enabled, hud;
         final int debug; final double[] cam, target;
-        boolean lod = true;
+        boolean lod = true, bloom = true;
         Shot(String name, long time, boolean torch, boolean enabled, boolean hud, int debug, double[] cam, double[] target) {
             this.name = name; this.time = time; this.torch = torch; this.enabled = enabled; this.hud = hud;
             this.debug = debug; this.cam = cam; this.target = target;
         }
         Shot noLod() {
             lod = false;
+            return this;
+        }
+        Shot noBloom() {
+            bloom = false;
             return this;
         }
     }
@@ -55,6 +59,10 @@ final class AutoShot {
     private static final double[] FAR = {16.0, 0.0, 10.0}, FAR_T = {2.0, 8.0, 89.0};
     // raised, ~90 blocks from the tower, looking at the ground west of it where its shadow falls
     private static final double[] FAR_HIGH = {12.0, 24.0, 2.0}, FAR_HIGH_T = {-14.0, 0.0, 90.0};
+    // non-full blocks (slab, stairs, fence, iron bars, sugar cane) and a placed torch
+    private static final double[] PARTIAL = {20.5, 2.0, 19.5}, PARTIAL_T = {20.0, 0.0, 10.0};
+    // glowstone set flush into the floor and a lava pool
+    private static final double[] FLUSH = {27.5, 2.0, 23.5}, FLUSH_T = {28.0, -1.0, 15.0};
     private static final long DAY = 2000L, NIGHT = 18000L;
 
     private static final Shot[] SHOTS = {
@@ -83,6 +91,13 @@ final class AutoShot {
             new Shot("23_day_far_shadow_lod", DAY, false, true, false, 0, FAR_HIGH, FAR_HIGH_T),
             new Shot("24_day_far_shadow_no_lod", DAY, false, true, false, 0, FAR_HIGH, FAR_HIGH_T).noLod(),
             new Shot("25_day_far_shadow_vanilla", DAY, false, false, false, 0, FAR_HIGH, FAR_HIGH_T),
+            new Shot("26_day_partial_pathtrace", DAY, false, true, false, 0, PARTIAL, PARTIAL_T),
+            new Shot("27_day_partial_vanilla", DAY, false, false, false, 0, PARTIAL, PARTIAL_T),
+            new Shot("28_night_partial_pathtrace", NIGHT, false, true, false, 0, PARTIAL, PARTIAL_T),
+            new Shot("29_night_partial_vanilla", NIGHT, false, false, false, 0, PARTIAL, PARTIAL_T),
+            new Shot("30_night_flush_lava_pathtrace", NIGHT, false, true, false, 0, FLUSH, FLUSH_T),
+            new Shot("31_night_flush_lava_no_bloom", NIGHT, false, true, false, 0, FLUSH, FLUSH_T).noBloom(),
+            new Shot("32_night_flush_lava_vanilla", NIGHT, false, false, false, 0, FLUSH, FLUSH_T),
     };
 
     private int index = -1;          // -1 = not in a world yet
@@ -156,6 +171,7 @@ final class AutoShot {
         mc.gameSettings.hideGUI = !shot.hud;
         PTConfig.debugView = shot.debug;
         PTConfig.lodShadows = shot.lod;
+        PTConfig.bloom = shot.bloom;
         ClientHandler.setEnabled(shot.enabled);
         if (prev == null || prev.time != shot.time || prev.cam != shot.cam || prev.torch != shot.torch) {
             setupScene(mc.getIntegratedServer(), shot);
@@ -217,6 +233,17 @@ final class AutoShot {
         for (int y = 2; y <= 18; y += 4)
             for (int x = 1; x <= 3; x += 2) set(w, b, x, y, 88, Blocks.GLOWSTONE.getDefaultState());
         for (int x = -3; x <= 7; x += 2) set(w, b, x, 0, 85, Blocks.TORCH.getDefaultState());
+        // non-full blocks
+        set(w, b, 16, 0, 9, Blocks.WOODEN_SLAB.getDefaultState());
+        set(w, b, 17, 0, 9, Blocks.OAK_STAIRS.getDefaultState());
+        for (int z = 9; z <= 11; z++) set(w, b, 19, 0, z, Blocks.OAK_FENCE.getDefaultState());
+        for (int y = 0; y <= 2; y++) for (int z = 9; z <= 11; z++) set(w, b, 21, y, z, Blocks.IRON_BARS.getDefaultState());
+        set(w, b, 23, -1, 10, Blocks.WATER.getDefaultState());
+        for (int y = 0; y <= 2; y++) set(w, b, 23, y, 9, Blocks.REEDS.getDefaultState());
+        set(w, b, 20, 0, 13, Blocks.TORCH.getDefaultState());
+        // light sources flush with the floor
+        set(w, b, 26, -1, 16, Blocks.GLOWSTONE.getDefaultState());
+        for (int x = 28; x <= 30; x++) for (int z = 14; z <= 16; z++) set(w, b, x, -1, z, Blocks.LAVA.getDefaultState());
     }
 
     private static void set(WorldServer w, BlockPos b, int x, int y, int z, IBlockState s) {

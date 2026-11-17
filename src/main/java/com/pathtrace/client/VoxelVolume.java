@@ -1,9 +1,12 @@
 package com.pathtrace.client;
 
 import com.pathtrace.PTConfig;
+import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.util.BlockRenderLayer;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
@@ -23,6 +26,8 @@ import java.util.LinkedHashSet;
  *   <li>voxel texel: RGB = block colour, A = 128 (solid) | colourIndex << 4 | light level</li>
  *   <li>coarse texture: one texel per 4x4x4 cell, non-zero if any block in it is solid (empty-space skipping)</li>
  *   <li>height texture: world height per column, so rays leaving the grid know whether they reach the sky</li>
+ *   <li>mask textures A/B: for non-full blocks (slabs, stairs, fences, torches, plants...) a 4x4x4 shape,
+ *       64 bits over 8 bytes (bit = x + 4y + 16z); all zero = full block</li>
  * </ul>
  */
 final class VoxelVolume {
@@ -32,6 +37,9 @@ final class VoxelVolume {
     private static final int MAX_DIRTY_BOXES = 512;
 
     private final ByteBuffer voxels = BufferUtils.createByteBuffer(N * N * N * 4);
+    private final ByteBuffer maskA = BufferUtils.createByteBuffer(N * N * N * 4);
+    private final ByteBuffer maskB = BufferUtils.createByteBuffer(N * N * N * 4);
+    private final java.util.List<AxisAlignedBB> boxes = new java.util.ArrayList<>();
     private final ByteBuffer heights = BufferUtils.createByteBuffer(N * N * 4);
     private final ByteBuffer coarse = BufferUtils.createByteBuffer(C * C * C);
     private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -39,7 +47,7 @@ final class VoxelVolume {
     private final LinkedHashSet<Long> dirtyBlocks = new LinkedHashSet<>();
     private final ArrayDeque<int[]> dirtyBoxes = new ArrayDeque<>();
 
-    private int tex3d = -1, coarseTex = -1, heightTex = -1;
+    private int tex3d = -1, coarseTex = -1, heightTex = -1, maskTexA = -1, maskTexB = -1;
     private int ox, oy, oz;
     private boolean valid, rebuilding, heightsDirty;
     private int bx, by, bz, buildZ, refreshZ;
@@ -51,6 +59,8 @@ final class VoxelVolume {
     int originY() { return oy; }
     int originZ() { return oz; }
     int texture() { return tex3d; }
+    int maskTextureA() { return maskTexA; }
+    int maskTextureB() { return maskTexB; }
     int coarseTexture() { return coarseTex; }
     int heightTexture() { return heightTex; }
 
@@ -180,26 +190,39 @@ final class VoxelVolume {
         heightsDirty = true;
     }
 
+    private void clearVoxel(int idx) {
+        voxels.putInt(idx, 0);
+        maskA.putInt(idx, 0);
+        maskB.putInt(idx, 0);
+    }
+
     private void fillVoxel(int baseX, int baseY, int baseZ, int x, int y, int z) {
         int key = (z * N + y) * N + x;
         int idx = key * 4;
         int wy = baseY + y;
         if (wy < 0 || wy > 255) {
-            voxels.putInt(idx, 0);
+            clearVoxel(idx);
             return;
         }
         pos.setPos(baseX + x, wy, baseZ + z);
         IBlockState s = world.getBlockState(pos);
         Material m = s.getMaterial();
         if (m == Material.AIR) {
-            voxels.putInt(idx, 0);
+            clearVoxel(idx);
             return;
         }
         int light = Math.max(0, Math.min(15, s.getLightValue(world, pos)));
-        boolean solid = s.isOpaqueCube() || m == Material.LEAVES || light > 0;
-        if (!solid) {
-            voxels.putInt(idx, 0);
-            return;
+        boolean full = s.isOpaqueCube() || m == Material.LEAVES;
+        long shape = 0L;
+        if (!full) {
+            // glass and liquids let light through (lava etc. still count as a full glowing block)
+            boolean passThrough = m == Material.GLASS || m.isLiquid() || m == Material.PORTAL;
+            if (!passThrough) shape = partialShape(s, m);
+            if (shape == 0L && light == 0) {
+                clearVoxel(idx);
+                return;
+            }
+            if (shape == -1L) shape = 0L;   // shape fills the whole block: treat as full
         }
         int color = light > 0 ? LightColors.forBlock(s.getBlock()) : 0;
         int c = s.getMapColor(world, pos).colorValue;
@@ -208,6 +231,67 @@ final class VoxelVolume {
         voxels.put(idx + 1, (byte) (c >> 8));
         voxels.put(idx + 2, (byte) c);
         voxels.put(idx + 3, (byte) (128 | (color << 4) | light));
+        for (int j = 0; j < 4; j++) {
+            maskA.put(idx + j, (byte) (shape >>> (8 * j)));
+            maskB.put(idx + j, (byte) (shape >>> (8 * (j + 4))));
+        }
+    }
+
+    /**
+     * 4x4x4 occupancy of a non-full block from its collision boxes (or its outline for things you
+     * walk through, like plants and torches). Cut-out blocks (plants, bars...) get a checkerboard so
+     * they cast lighter, dappled shadows. 0 = nothing, -1 = completely full.
+     */
+    private long partialShape(IBlockState s, Material m) {
+        boxes.clear();
+        boolean dither;
+        try {
+            dither = s.getBlock().canRenderInLayer(s, BlockRenderLayer.CUTOUT)
+                    || s.getBlock().canRenderInLayer(s, BlockRenderLayer.CUTOUT_MIPPED);
+            s.addCollisionBoxToList(world, pos, new AxisAlignedBB(pos).grow(0.01), boxes, null, false);
+            if (boxes.isEmpty()) {
+                AxisAlignedBB bb = s.getBoundingBox(world, pos);
+                if (bb == null || bb == Block.NULL_AABB) return 0L;
+                boxes.add(bb.offset(pos));
+                dither = dither || m == Material.PLANTS || m == Material.VINE;
+            }
+        } catch (Throwable t) {
+            return 0L;
+        }
+        long bits = 0L;
+        int set = 0;
+        for (int mz = 0; mz < 4; mz++)
+            for (int my = 0; my < 4; my++)
+                for (int mx = 0; mx < 4; mx++) {
+                    if (dither && ((mx + my + mz) & 1) != 0) continue;
+                    double cx = pos.getX() + (mx + 0.5) * 0.25;
+                    double cy = pos.getY() + (my + 0.5) * 0.25;
+                    double cz = pos.getZ() + (mz + 0.5) * 0.25;
+                    for (AxisAlignedBB b : boxes) {
+                        if (cx > b.minX && cx < b.maxX && cy > b.minY && cy < b.maxY && cz > b.minZ && cz < b.maxZ) {
+                            bits |= 1L << (mx + 4 * my + 16 * mz);
+                            set++;
+                            break;
+                        }
+                    }
+                }
+        if (set == 64) return -1L;
+        if (set == 0) {
+            // thinner than a quarter block (carpet, pressure plate, torch...): use its nearest cells
+            for (AxisAlignedBB b : boxes) {
+                int x0 = cellOf(b.minX - pos.getX()), x1 = cellOf(b.maxX - pos.getX() - 1e-4);
+                int y0 = cellOf(b.minY - pos.getY()), y1 = cellOf(b.maxY - pos.getY() - 1e-4);
+                int z0 = cellOf(b.minZ - pos.getZ()), z1 = cellOf(b.maxZ - pos.getZ() - 1e-4);
+                for (int mz = z0; mz <= z1; mz++)
+                    for (int my = y0; my <= y1; my++)
+                        for (int mx = x0; mx <= x1; mx++) bits |= 1L << (mx + 4 * my + 16 * mz);
+            }
+        }
+        return bits;
+    }
+
+    private static int cellOf(double v) {
+        return Math.max(0, Math.min(3, (int) Math.floor(v * 4.0)));
     }
 
     private void computeCoarse(int cx, int cy, int cz) {
@@ -227,6 +311,8 @@ final class VoxelVolume {
 
     private void createTextures() {
         tex3d = create3D(GL11.GL_RGBA8, GL11.GL_RGBA, N);
+        maskTexA = create3D(GL11.GL_RGBA8, GL11.GL_RGBA, N);
+        maskTexB = create3D(GL11.GL_RGBA8, GL11.GL_RGBA, N);
         coarseTex = create3D(GL30.GL_R8, GL11.GL_RED, C);
 
         heightTex = GlStateManager.generateTexture();
@@ -272,6 +358,14 @@ final class VoxelVolume {
         GL11.glBindTexture(GL12.GL_TEXTURE_3D, tex3d);
         setUnpack(N, N, x, y, z, 4);
         GL12.glTexSubImage3D(GL12.GL_TEXTURE_3D, 0, x, y, z, w, h, d, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, b);
+        ByteBuffer ma = maskA.duplicate();
+        ma.clear();
+        GL11.glBindTexture(GL12.GL_TEXTURE_3D, maskTexA);
+        GL12.glTexSubImage3D(GL12.GL_TEXTURE_3D, 0, x, y, z, w, h, d, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, ma);
+        ByteBuffer mb = maskB.duplicate();
+        mb.clear();
+        GL11.glBindTexture(GL12.GL_TEXTURE_3D, maskTexB);
+        GL12.glTexSubImage3D(GL12.GL_TEXTURE_3D, 0, x, y, z, w, h, d, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, mb);
         resetUnpack();
         GL11.glBindTexture(GL12.GL_TEXTURE_3D, 0);
     }

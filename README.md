@@ -52,6 +52,7 @@ Mods → PathTrace → Config, or `config/pathtrace.cfg`.
 | `pointLightStrength`, `emissiveStrength` | 2.5, 2.5 | Block light and glow brightness |
 | `dynamicLights` | true | Lights from entities and items |
 | `litHand` | true | Path traced lighting on the first-person hand |
+| `bloom`, `bloomStrength` | true, 0.6 | Soft glow around light sources (flames, glowstone, lava…) |
 | `lodShadows` | true | Shadows beyond the detailed 128-block grid, from a coarser grid out to the render distance |
 | `debugView` | 0 | 1 = direct light only, 2 = bounce light only, 3 = surface normals |
 
@@ -81,8 +82,9 @@ Run the same thing locally with `gradlew runClient -Pautoshot`.
 
 ## Limitations
 
-- In the voxel grid, only full opaque blocks, leaves and light sources block light. Slabs, stairs, glass,
-  fences and mobs don't cast shadows, but they do receive light.
+- Non-full blocks (slabs, stairs, fences, bars, torches, plants) cast shadows from a 4×4×4 approximation of
+  their shape; plants and other cut-out blocks cast lighter, dappled shadows. Glass and liquids let light
+  through, and mobs don't cast shadows yet.
 - Beyond about 64 blocks, shadows come from a coarser grid (2-block cells, 4 above render distance 8), so they
   are blockier, and thin things (single blocks, fences) may not cast them.
 - Not compatible with OptiFine shaders.

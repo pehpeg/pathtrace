@@ -58,7 +58,7 @@ final class LightCollector {
         float[] rgb = LightColors.RGB[Math.min(color, LightColors.RGB.length - 1)];
         float k = light / 15f * strength;
         pos.put(x).put(y).put(z).put(light + 0.5f);
-        col.put(rgb[0] * k).put(rgb[1] * k).put(rgb[2] * k).put(1f);
+        col.put(rgb[0] * k).put(rgb[1] * k).put(rgb[2] * k).put(13f);   // 13 = not offset
         count++;
     }
 

@@ -52,7 +52,7 @@ final class PathTraceRenderer {
     private final LightGrid lightGrid = new LightGrid();
     private final LodVolume lod = new LodVolume();
 
-    private ShaderProgram gbufferSh, traceSh, atrousSh, directSh, compositeSh, probeSh, handSh, lumSh, exposureSh;
+    private ShaderProgram bloomPreSh, bloomDownSh, bloomUpSh, gbufferSh, traceSh, atrousSh, directSh, compositeSh, probeSh, handSh, lumSh, exposureSh;
     private boolean shaderFailed;
 
     private int width = -1, height = -1, traceW = -1, traceH = -1;
@@ -64,6 +64,9 @@ final class PathTraceRenderer {
     private RenderTarget lum;
     private RenderTarget direct;
     private RenderTarget gbuffer;
+    private static final int BLOOM_LEVELS = 5;
+    private final RenderTarget[] bloomDown = new RenderTarget[BLOOM_LEVELS];
+    private final RenderTarget[] bloomUp = new RenderTarget[BLOOM_LEVELS];
     private int cur;
     private int frame;
     private boolean hasHistory;
@@ -265,6 +268,42 @@ final class PathTraceRenderer {
         drawQuad();
         int dirTex = direct.tex[0];
 
+        // 4c. bloom from light-source pixels
+        int bloomTex = 0;
+        if (PTConfig.bloom) {
+            bloomDown[0].bind();
+            bloomPreSh.use();
+            bind2D(0, sceneTex);
+            bind2D(2, dirTex);
+            bind2D(3, depthTex);
+            bloomPreSh.set("sceneTex", 0);
+            bloomPreSh.set("directTex", 2);
+            bloomPreSh.set("depthTex", 3);
+            bloomPreSh.set("srcTexel", 1f / width, 1f / height);
+            drawQuad();
+            bloomDownSh.use();
+            bloomDownSh.set("srcTex", 2);
+            for (int i = 1; i < BLOOM_LEVELS; i++) {
+                bloomDown[i].bind();
+                bind2D(2, bloomDown[i - 1].tex[0]);
+                bloomDownSh.set("srcTexel", 1f / bloomDown[i - 1].width, 1f / bloomDown[i - 1].height);
+                drawQuad();
+            }
+            bloomUpSh.use();
+            bloomUpSh.set("srcTex", 2);
+            bloomUpSh.set("addTex", 3);
+            RenderTarget src = bloomDown[BLOOM_LEVELS - 1];
+            for (int i = BLOOM_LEVELS - 2; i >= 0; i--) {
+                bloomUp[i].bind();
+                bind2D(2, src.tex[0]);
+                bind2D(3, bloomDown[i].tex[0]);
+                bloomUpSh.set("srcTexel", 1f / src.width, 1f / src.height);
+                drawQuad();
+                src = bloomUp[i];
+            }
+            bloomTex = bloomUp[0].tex[0];
+        }
+
         // 5. auto exposure
         int expTex = 0;
         if (PTConfig.autoExposure) {
@@ -313,6 +352,9 @@ final class PathTraceRenderer {
         compositeSh.setMatrix("invProj", invProj);
         compositeSh.set("lowRes", (float) traceW, (float) traceH);
         compositeSh.set("debugView", PTConfig.debugView);
+        bindRaw(8, bloomTex);
+        compositeSh.set("bloomTex", 8);
+        compositeSh.set("bloomStrength", PTConfig.bloom ? (float) PTConfig.bloomStrength : 0f);
         setGrading(compositeSh);
         drawQuad();
 
@@ -395,6 +437,10 @@ final class PathTraceRenderer {
         bind2D(5, volume.heightTexture());
         bind3D(6, volume.texture());
         bind3D(7, volume.coarseTexture());
+        bindRaw3D(11, volume.maskTextureA());
+        bindRaw3D(12, volume.maskTextureB());
+        s.set("maskTexA", 11);
+        s.set("maskTexB", 12);
         s.set("heightTex", 5);
         s.set("voxelTex", 6);
         s.set("coarseTex", 7);
@@ -506,6 +552,9 @@ final class PathTraceRenderer {
         if (shaderFailed) return false;
         try {
             gbufferSh = ShaderProgram.load(VSH, "gbuffer.fsh");
+            bloomPreSh = ShaderProgram.load(VSH, "bloom_pre.fsh");
+            bloomDownSh = ShaderProgram.load(VSH, "bloom_down.fsh");
+            bloomUpSh = ShaderProgram.load(VSH, "bloom_up.fsh");
             traceSh = ShaderProgram.load(VSH, "trace.fsh");
             atrousSh = ShaderProgram.load(VSH, "atrous.fsh");
             directSh = ShaderProgram.load(VSH, "direct.fsh");
@@ -525,10 +574,10 @@ final class PathTraceRenderer {
     }
 
     private void deleteShaders() {
-        for (ShaderProgram s : new ShaderProgram[]{gbufferSh, traceSh, atrousSh, directSh, compositeSh, probeSh, handSh, lumSh, exposureSh}) {
+        for (ShaderProgram s : new ShaderProgram[]{bloomPreSh, bloomDownSh, bloomUpSh, gbufferSh, traceSh, atrousSh, directSh, compositeSh, probeSh, handSh, lumSh, exposureSh}) {
             if (s != null) s.delete();
         }
-        gbufferSh = traceSh = atrousSh = directSh = compositeSh = probeSh = handSh = lumSh = exposureSh = null;
+        bloomPreSh = bloomDownSh = bloomUpSh = gbufferSh = traceSh = atrousSh = directSh = compositeSh = probeSh = handSh = lumSh = exposureSh = null;
     }
 
     private void ensureTargets(int w, int h) {
@@ -549,6 +598,11 @@ final class PathTraceRenderer {
         }
         direct = new RenderTarget(w, h, 1, GL11.GL_NEAREST);
         gbuffer = new RenderTarget(w, h, 1, GL11.GL_NEAREST, GL30.GL_RGBA32F);   // 32-bit: distance must be exact
+        for (int i = 0; i < BLOOM_LEVELS; i++) {
+            int bw = Math.max(1, w >> (i + 1)), bh = Math.max(1, h >> (i + 1));
+            bloomDown[i] = new RenderTarget(bw, bh, 1, GL11.GL_LINEAR).linear();
+            if (i < BLOOM_LEVELS - 1) bloomUp[i] = new RenderTarget(bw, bh, 1, GL11.GL_LINEAR).linear();
+        }
         lum = new RenderTarget(64, 64, 1, GL11.GL_NEAREST_MIPMAP_NEAREST);
         bind2D(0, lum.tex[0]);
         GL30.glGenerateMipmap(GL11.GL_TEXTURE_2D);
@@ -570,6 +624,11 @@ final class PathTraceRenderer {
         if (lum != null) lum.delete();
         if (direct != null) direct.delete();
         if (gbuffer != null) gbuffer.delete();
+        for (int i = 0; i < BLOOM_LEVELS; i++) {
+            if (bloomDown[i] != null) bloomDown[i].delete();
+            if (bloomUp[i] != null) bloomUp[i].delete();
+            bloomDown[i] = bloomUp[i] = null;
+        }
         lum = direct = gbuffer = null;
     }
 

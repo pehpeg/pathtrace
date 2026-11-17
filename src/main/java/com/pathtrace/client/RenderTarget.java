@@ -51,6 +51,16 @@ final class RenderTarget {
         GlStateManager.clear(GL11.GL_COLOR_BUFFER_BIT);
     }
 
+    /** Bilinear filtering (for blur chains). */
+    RenderTarget linear() {
+        for (int t : tex) {
+            GlStateManager.bindTexture(t);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+        }
+        return this;
+    }
+
     void bind() {
         OpenGlHelper.glBindFramebuffer(OpenGlHelper.GL_FRAMEBUFFER, fbo);
         GlStateManager.viewport(0, 0, width, height);

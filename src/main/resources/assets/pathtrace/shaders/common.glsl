@@ -4,6 +4,8 @@
 uniform sampler3D voxelTex;   // RGB albedo, A = 128 solid | colour << 4 | light
 uniform sampler3D coarseTex;  // 1 texel per 4x4x4 cell, R > 0 if anything solid inside
 uniform sampler2D heightTex;  // world height per column
+uniform sampler3D maskTexA;   // 4x4x4 shape of non-full blocks, bits 0-31 (all zero = full block)
+uniform sampler3D maskTexB;   // bits 32-63
 uniform float volumeSize;
 uniform float originY;
 uniform vec3 camPos;
@@ -16,7 +18,7 @@ uniform float emissiveStrength;
 uniform float frame;
 
 // Block lights: clustered grid (see LightGrid.java). Dynamic lights: small uniform list.
-uniform sampler2D lightTex;   // 2 texels per light: (pos relative to grid origin, radius), (rgb intensity)
+uniform sampler2D lightTex;   // 2 texels per light: (pos relative to grid origin, radius), (rgb intensity, offset code)
 uniform sampler2D cellTex;    // 4 texels per 8x8x8 cell: 16 light indices, strongest first, -1 = none
 uniform vec3 gridOrigin;      // volume space
 uniform vec3 gridCells;
@@ -25,7 +27,8 @@ uniform vec2 cellTexSize;
 #define GRID_CELL 8.0
 #define MAX_DYN 16
 uniform vec4 dynLightPos[MAX_DYN];   // xyz position, w radius
-uniform vec4 dynLightCol[MAX_DYN];   // rgb intensity
+uniform vec4 dynLightCol[MAX_DYN];   // rgb intensity, w = offset code (13)
+#define LIGHT_PUSH 0.8               // LightGrid.PUSH
 uniform int dynLightCount;
 float lightMinDist = 0.0;            // falloff never gets brighter than at this distance
 
@@ -97,6 +100,46 @@ bool coarseEmpty(vec3 cell) {
     return texture3D(coarseTex, (floor(cell * 0.25) + 0.5) / (volumeSize * 0.25)).r < 0.5;
 }
 
+// ---- sub-block shapes: a non-full block is a 4x4x4 grid of quarter-block cells
+float maskByte(vec4 a, vec4 b, float i) {
+    vec4 v = i < 3.5 ? a : b;
+    float j = mod(i, 4.0);
+    float c = j < 0.5 ? v.r : (j < 1.5 ? v.g : (j < 2.5 ? v.b : v.a));
+    return floor(c * 255.0 + 0.5);
+}
+
+bool microSolid(vec4 a, vec4 b, vec3 m) {
+    float bit = m.x + 4.0 * m.y + 16.0 * m.z;
+    float byteV = maskByte(a, b, floor(bit / 8.0));
+    return mod(floor(byteV / exp2(mod(bit, 8.0))), 2.0) > 0.5;
+}
+
+// Walk the 4x4x4 cells of `cell`, which the ray enters at distance tEnter through face nEnter.
+bool traceMicro(vec3 ro, vec3 rd, vec3 invd, vec3 stp, vec3 cell, float tEnter, vec3 nEnter,
+                vec4 a, vec4 b, out float tHit, out vec3 nHit) {
+    vec3 p = (ro + rd * (tEnter + 1e-4) - cell) * 4.0;
+    vec3 m = clamp(floor(p), vec3(0.0), vec3(3.0));
+    vec3 tMax = abs(cell + (m + step(0.0, rd)) * 0.25 - ro) * invd;
+    float t = tEnter;
+    vec3 n = nEnter;
+    for (int i = 0; i < 12; i++) {
+        if (microSolid(a, b, m)) {
+            tHit = t;
+            nHit = n;
+            return true;
+        }
+        if (tMax.x < tMax.y && tMax.x < tMax.z) {
+            m.x += stp.x; t = tMax.x; tMax.x += 0.25 * invd.x; n = vec3(-stp.x, 0.0, 0.0);
+        } else if (tMax.y < tMax.z) {
+            m.y += stp.y; t = tMax.y; tMax.y += 0.25 * invd.y; n = vec3(0.0, -stp.y, 0.0);
+        } else {
+            m.z += stp.z; t = tMax.z; tMax.z += 0.25 * invd.z; n = vec3(0.0, 0.0, -stp.z);
+        }
+        if (any(lessThan(m, vec3(0.0))) || any(greaterThan(m, vec3(3.0)))) return false;
+    }
+    return false;
+}
+
 // Grid traversal (Amanatides & Woo) that jumps over empty 4x4x4 cells.
 // The starting cell is skipped on purpose.
 // Returns 1 = hit a block, 0 = left the volume, 2 = reached maxT, -1 = ran out of steps.
@@ -146,7 +189,18 @@ float traceRay(vec3 ro, vec3 rd, float maxT, out vec3 hitCell, out vec3 hitNorma
         }
         if (!insideVolume(cell)) { hitCell = cell; return 0.0; }
         if (hitT > maxT) return 2.0;
-        if (isSolid(fetchVoxel(cell))) { hitCell = cell; return 1.0; }
+        if (isSolid(fetchVoxel(cell))) {
+            vec3 uvw = (cell + 0.5) / volumeSize;
+            vec4 ma = texture3D(maskTexA, uvw);
+            vec4 mb = texture3D(maskTexB, uvw);
+            if (dot(ma + mb, vec4(1.0)) <= 0.0) { hitCell = cell; return 1.0; }   // full block
+            float tm; vec3 nm;
+            if (traceMicro(ro, rd, invd, stp, cell, hitT, hitNormal, ma, mb, tm, nm)) {
+                if (tm > maxT) return 2.0;
+                hitCell = cell; hitT = tm; hitNormal = nm;
+                return 1.0;
+            }
+        }
     }
     return -1.0;
 }
@@ -235,7 +289,9 @@ vec3 cosineDirection(vec3 n) {
 vec3 g_sum;
 float g_total;
 vec4 g_pick;
+vec3 g_pickCell;
 vec4 g_topP0, g_topP1, g_topP2, g_topP3;
+vec3 g_topB0, g_topB1, g_topB2, g_topB3;   // the light's own block (its hits don't shadow it)
 vec3 g_topC0, g_topC1, g_topC2, g_topC3;
 float g_topW0, g_topW1, g_topW2, g_topW3;
 vec3 g_ownCell;
@@ -249,15 +305,25 @@ float lightTerm(vec4 lp, vec3 lc, vec3 p, vec3 n, out vec3 contrib) {
     if (d2 >= lp.w * lp.w) return 0.0;
     float d = sqrt(max(d2, 1e-4));
     float ndl = dot(n, L / d);
-    if (ndl <= 0.0) return 0.0;
+    if (ndl <= -0.25) return 0.0;
     float fd = max(d, lightMinDist);
     float x = max(1.0 - fd / lp.w, 0.0);
-    contrib = lc * (ndl * x * x / (1.0 + 0.3 * fd * fd));
+    float wrap = (ndl + 0.25) / 1.25;      // block light spreads a little past grazing angles, like vanilla
+    contrib = lc * (wrap * x * x / (1.0 + 0.3 * fd * fd));
     return luminance(contrib);
 }
 
-void visitLight(vec4 lp, vec3 lc, vec3 p, vec3 n) {
-    if (all(equal(floor(lp.xyz), g_ownCell))) {
+// The block a light belongs to: lights of full glowing blocks are pushed out towards their open faces.
+vec3 lightBlock(vec3 lp, float code) {
+    vec3 o = vec3(mod(code, 3.0), mod(floor(code / 3.0), 3.0), floor(code / 9.0)) - 1.0;
+    float l = length(o);
+    return floor(l > 0.5 ? lp - o / l * LIGHT_PUSH : lp);
+}
+
+void visitLight(vec4 lp, vec4 lcw, vec3 p, vec3 n) {
+    vec3 lc = lcw.rgb;
+    vec3 blk = lightBlock(lp.xyz, lcw.w);
+    if (all(equal(blk, g_ownCell))) {
         g_glow = max(g_glow, lc / max(max(lc.r, lc.g), max(lc.b, 1e-4)) * ((lp.w - 0.5) / 15.0));
     }
     vec3 c;
@@ -265,22 +331,22 @@ void visitLight(vec4 lp, vec3 lc, vec3 p, vec3 n) {
     if (w <= 0.0) return;
     g_sum += c;
     g_total += w;
-    if (rand() * g_total < w) g_pick = lp;
+    if (rand() * g_total < w) { g_pick = lp; g_pickCell = blk; }
     if (!g_wantTop) return;
     if (w > g_topW0) {
-        g_topW3 = g_topW2; g_topP3 = g_topP2; g_topC3 = g_topC2;
-        g_topW2 = g_topW1; g_topP2 = g_topP1; g_topC2 = g_topC1;
-        g_topW1 = g_topW0; g_topP1 = g_topP0; g_topC1 = g_topC0;
-        g_topW0 = w; g_topP0 = lp; g_topC0 = c;
+        g_topW3 = g_topW2; g_topP3 = g_topP2; g_topC3 = g_topC2; g_topB3 = g_topB2;
+        g_topW2 = g_topW1; g_topP2 = g_topP1; g_topC2 = g_topC1; g_topB2 = g_topB1;
+        g_topW1 = g_topW0; g_topP1 = g_topP0; g_topC1 = g_topC0; g_topB1 = g_topB0;
+        g_topW0 = w; g_topP0 = lp; g_topC0 = c; g_topB0 = blk;
     } else if (w > g_topW1) {
-        g_topW3 = g_topW2; g_topP3 = g_topP2; g_topC3 = g_topC2;
-        g_topW2 = g_topW1; g_topP2 = g_topP1; g_topC2 = g_topC1;
-        g_topW1 = w; g_topP1 = lp; g_topC1 = c;
+        g_topW3 = g_topW2; g_topP3 = g_topP2; g_topC3 = g_topC2; g_topB3 = g_topB2;
+        g_topW2 = g_topW1; g_topP2 = g_topP1; g_topC2 = g_topC1; g_topB2 = g_topB1;
+        g_topW1 = w; g_topP1 = lp; g_topC1 = c; g_topB1 = blk;
     } else if (w > g_topW2) {
-        g_topW3 = g_topW2; g_topP3 = g_topP2; g_topC3 = g_topC2;
-        g_topW2 = w; g_topP2 = lp; g_topC2 = c;
+        g_topW3 = g_topW2; g_topP3 = g_topP2; g_topC3 = g_topC2; g_topB3 = g_topB2;
+        g_topW2 = w; g_topP2 = lp; g_topC2 = c; g_topB2 = blk;
     } else if (w > g_topW3) {
-        g_topW3 = w; g_topP3 = lp; g_topC3 = c;
+        g_topW3 = w; g_topP3 = lp; g_topC3 = c; g_topB3 = blk;
     }
 }
 
@@ -288,20 +354,21 @@ bool visitIndex(float idx, vec3 p, vec3 n) {
     if (idx < 0.0) return false;
     vec2 base = vec2(mod(idx, 128.0) * 2.0, floor(idx / 128.0));
     vec4 lp = texture2D(lightTex, (base + 0.5) / lightTexSize);
-    vec3 lc = texture2D(lightTex, (base + vec2(1.5, 0.5)) / lightTexSize).rgb;
+    vec4 lcw = texture2D(lightTex, (base + vec2(1.5, 0.5)) / lightTexSize);
     lp.xyz += gridOrigin;
-    visitLight(lp, lc, p, n);
+    visitLight(lp, lcw, p, n);
     return true;
 }
 
 void visitLights(vec3 p, vec3 n) {
-    g_sum = vec3(0.0); g_total = 0.0; g_pick = vec4(0.0); g_glow = vec3(0.0);
+    g_sum = vec3(0.0); g_total = 0.0; g_pick = vec4(0.0); g_pickCell = vec3(-1.0e9); g_glow = vec3(0.0);
+    g_topB0 = vec3(-1.0e9); g_topB1 = vec3(-1.0e9); g_topB2 = vec3(-1.0e9); g_topB3 = vec3(-1.0e9);
     g_topW0 = 0.0; g_topW1 = 0.0; g_topW2 = 0.0; g_topW3 = 0.0;
     g_topP0 = vec4(0.0); g_topP1 = vec4(0.0); g_topP2 = vec4(0.0); g_topP3 = vec4(0.0);
     g_topC0 = vec3(0.0); g_topC1 = vec3(0.0); g_topC2 = vec3(0.0); g_topC3 = vec3(0.0);
     for (int i = 0; i < MAX_DYN; i++) {
         if (i >= dynLightCount) break;
-        visitLight(dynLightPos[i], dynLightCol[i].rgb, p, n);
+        visitLight(dynLightPos[i], dynLightCol[i], p, n);
     }
     vec3 c = floor((p - gridOrigin) / GRID_CELL);
     if (any(lessThan(c, vec3(0.0))) || any(greaterThanEqual(c, gridCells))) return;
@@ -316,12 +383,12 @@ void visitLights(vec3 p, vec3 n) {
     }
 }
 
-// 1 if nothing blocks the segment from p to the light at lp
-float lightVisible(vec3 p, vec3 lp) {
+// 1 if nothing blocks the segment from p to the light at lp (hits on its own block don't count)
+float lightVisible(vec3 p, vec3 lp, vec3 lightBlockCell) {
     vec3 L = lp - p;
     float d = length(L);
     if (d < 1e-3) return 1.0;
-    return shadowBlocked(p, L / d, d - 0.05, floor(lp)) ? 0.0 : 1.0;
+    return shadowBlocked(p, L / d, d - 0.05, lightBlockCell) ? 0.0 : 1.0;
 }
 
 // All point lights at p. With shadows, the light picked in proportion to its contribution
@@ -330,7 +397,7 @@ vec3 pointLights(vec3 p, vec3 n, bool shadows) {
     g_ownCell = vec3(-1.0e9);
     visitLights(p, n);
     if (g_total <= 1e-5 || !shadows) return g_sum;
-    return g_sum * lightVisible(p, g_pick.xyz);
+    return g_sum * lightVisible(p, g_pick.xyz, g_pickCell);
 }
 
 // 64 fixed directions on a sphere (Fibonacci), shared by the eye probe and the hand pass.

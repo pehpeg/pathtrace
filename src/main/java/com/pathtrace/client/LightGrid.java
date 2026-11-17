@@ -18,7 +18,8 @@ import java.util.Arrays;
  * look up the cell of a pixel and only loop over those lights, so the number of lights in the
  * world barely matters and distant lights work the same as near ones.
  * <ul>
- *   <li>light texture: 2 texels per light: (position relative to grid origin, radius), (rgb intensity)</li>
+ *   <li>light texture: 2 texels per light: (position relative to grid origin, radius),
+ *       (rgb intensity, offset code: which way the light was pushed out of its block)</li>
  *   <li>cell texture: 4 texels per cell holding 16 light indices (-1 = none)</li>
  * </ul>
  */
@@ -40,7 +41,9 @@ final class LightGrid {
     private int framesSinceBuild;
 
     private final float[] lx = new float[MAX_LIGHTS], ly = new float[MAX_LIGHTS], lz = new float[MAX_LIGHTS];
-    private final int[] llight = new int[MAX_LIGHTS], lcolor = new int[MAX_LIGHTS];
+    private final int[] llight = new int[MAX_LIGHTS], lcolor = new int[MAX_LIGHTS], loffset = new int[MAX_LIGHTS];
+    /** How far a light is pushed out of a full glowing block, towards its open faces. Must match common.glsl. */
+    static final float PUSH = 0.8f;
     private final double[] ld2 = new double[MAX_LIGHTS];
     private int[] cellIdx = new int[0];
     private float[] cellScore = new float[0];
@@ -113,8 +116,16 @@ final class LightGrid {
         final int[] overflow = {0};
         int pad = 16;
         emitters.forEach(ox - pad, oy - pad, oz - pad, ox + gx * CELL + pad, oy + gy * CELL + pad, oz + gz * CELL + pad,
-                (x, y, z, light, color) -> {
-                    double d2 = (x + 0.5 - cx) * (x + 0.5 - cx) + (y + 0.5 - cy) * (y + 0.5 - cy) + (z + 0.5 - cz) * (z + 0.5 - cz);
+                (x, y, z, light, color, offset) -> {
+                    float px = x + 0.5f, py = y + 0.5f, pz = z + 0.5f;
+                    if (offset != 13) {
+                        float dx = offset % 3 - 1, dy = (offset / 3) % 3 - 1, dz = offset / 9 - 1;
+                        float len = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+                        px += dx / len * PUSH;
+                        py += dy / len * PUSH;
+                        pz += dz / len * PUSH;
+                    }
+                    double d2 = (px - cx) * (px - cx) + (py - cy) * (py - cy) + (pz - cz) * (pz - cz);
                     int i = lightCount;
                     if (i == MAX_LIGHTS) {
                         overflow[0]++;
@@ -126,8 +137,8 @@ final class LightGrid {
                     } else {
                         lightCount++;
                     }
-                    lx[i] = x + 0.5f - ox; ly[i] = y + 0.5f - oy; lz[i] = z + 0.5f - oz;
-                    llight[i] = light; lcolor[i] = color; ld2[i] = d2;
+                    lx[i] = px - ox; ly[i] = py - oy; lz[i] = pz - oz;
+                    llight[i] = light; lcolor[i] = color; loffset[i] = offset; ld2[i] = d2;
                 });
 
         // 2. per cell, keep the K lights with the highest estimated contribution
@@ -166,7 +177,7 @@ final class LightGrid {
                 float[] rgb = LightColors.RGB[Math.min(lcolor[i], LightColors.RGB.length - 1)];
                 float k = llight[i] / 15f * strength;
                 lightBuf.put(lx[i]).put(ly[i]).put(lz[i]).put(llight[i] + 0.5f);
-                lightBuf.put(rgb[0] * k).put(rgb[1] * k).put(rgb[2] * k).put(0f);
+                lightBuf.put(rgb[0] * k).put(rgb[1] * k).put(rgb[2] * k).put((float) loffset[i]);
             } else {
                 for (int j = 0; j < 8; j++) lightBuf.put(0f);
             }
