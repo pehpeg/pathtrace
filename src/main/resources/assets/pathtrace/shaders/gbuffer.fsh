@@ -39,7 +39,8 @@ void main() {
     } else {
         // clouds aren't in the voxel grid and must not be lit as terrain (they'd turn black): w = 0
         vec3 P = ro + dir * depthDist;
-        if (P.y > cloudY - 0.3 && P.y < cloudY + 4.3) {
+        float tol = 1.0 + 0.02 * depthDist;   // far away the depth buffer is coarse
+        if (P.y > cloudY - tol && P.y < cloudY + 4.0 + tol) {
             vec3 cc = floor(P);
             if (!insideVolume(cc) || !isSolid(fetchVoxel(cc))) {
                 gl_FragColor = vec4(0.0);
