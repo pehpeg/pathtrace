@@ -478,6 +478,15 @@ float g_lightScale = 1.0;
 vec3 lightTarget(vec3 p, vec3 lp, vec3 blk, vec3 j) {
     if (!insideVolume(blk)) return lp;
     if (!isSolid(fetchVoxel(blk)) || shapeIdAt(blk) > 0.5) return lp;   // torches etc.: a point
+    vec3 off = lp - (blk + 0.5);
+    if (dot(off, off) > 0.01) {
+        // pushed out of one side (the only open side): a square just in front of that face
+        vec3 o = normalize(off);
+        vec3 d = p - lp + j;
+        d -= o * dot(d, o);
+        return lp + clamp(d, vec3(-0.45), vec3(0.45));
+    }
+    // open on opposite sides (e.g. in a 1-thick wall): the part of the block closest to p
     vec3 lo = blk + 0.05, hi = blk + 0.95;
     return clamp(clamp(p, lo, hi) + j, lo, hi);
 }
