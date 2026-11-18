@@ -9,6 +9,17 @@
 
 varying vec2 uv;
 uniform float cloudY;   // volume space, -1e9 when clouds are off
+uniform float projNear, projFar;   // of the terrain projection; clouds are drawn with far * 2*sqrt(2)
+
+// Clouds are drawn with their own projection (4x render distance instead of sqrt(2)x), so their depth
+// means a different distance. Distance along this pixel's ray if the depth value belongs to a cloud:
+float cloudDistance(float d, float depthDist) {
+    float n = projNear, f = projFar, fc = projFar * 2.828427;
+    float ndc = d * 2.0 - 1.0;
+    float zt = 2.0 * f * n / ((f + n) - ndc * (f - n));
+    float zc = 2.0 * fc * n / ((fc + n) - ndc * (fc - n));
+    return depthDist * zc / zt;
+}
 
 void main() {
     float d = texture2D(depthTex, uv).r;
@@ -37,12 +48,17 @@ void main() {
     if (fullHit && abs(t - depthDist) < 0.3 + 0.02 * depthDist) {
         gl_FragColor = vec4(hn, t);
     } else {
-        // clouds aren't in the voxel grid and must not be lit as terrain (they'd turn black): w = 0
-        vec3 P = ro + dir * depthDist;
-        float tol = 1.0 + 0.02 * depthDist;   // far away the depth buffer is coarse
-        if (P.y > cloudY - tol && P.y < cloudY + 4.0 + tol) {
-            vec3 cc = floor(P);
-            if (!insideVolume(cc) || !isSolid(fetchVoxel(cc))) {
+        // clouds aren't in the voxel grid and must not be lit as terrain (they'd turn black): w = 0.
+        // A pixel is a cloud if, read with the cloud projection, it sits in the cloud layer, and read
+        // as terrain there is no block behind it.
+        float dc = cloudDistance(d, depthDist);
+        vec3 Pc = ro + dir * dc;
+        float tol = 0.5 + 0.01 * dc;
+        if (Pc.y > cloudY - tol && Pc.y < cloudY + 4.0 + tol) {
+            vec3 cc = floor(ro + dir * (depthDist + 0.05));
+            bool solid = insideVolume(cc) ? isSolid(fetchVoxel(cc))
+                       : (lodEnabled > 0.5 && lodInside(cc - lodOrigin) && lodSolid(cc - lodOrigin));
+            if (!solid) {
                 gl_FragColor = vec4(0.0);
                 return;
             }

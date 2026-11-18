@@ -207,6 +207,9 @@ final class PathTraceRenderer {
         gbufferSh.setMatrix("invProj", invProj);
         gbufferSh.setMatrix("invView", invView);
         gbufferSh.set("depthTexel", 1f / width, 1f / height);
+        float m10 = proj.get(10), m14 = proj.get(14);
+        gbufferSh.set("projNear", m14 / (m10 - 1f));
+        gbufferSh.set("projFar", m14 / (m10 + 1f));
         gbufferSh.set("cloudY", mc.gameSettings.shouldRenderClouds() != 0
                 ? world.provider.getCloudHeight() - volume.originY() : -1.0e9f);
         drawQuad();
