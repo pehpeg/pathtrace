@@ -28,17 +28,10 @@ vec3 sunVisibilityHard(vec3 p) {
     return g_trans * escapeVisibility(p + lightDir * t);
 }
 
-// Glowing blocks are small area lights: 4 fixed points on the face give soft shadow edges
-// instead of the hard wedges a single point casts in corners.
+// One shadow ray per strong light, aimed at the part of a glowing block that faces this point.
 vec3 slot(float w, vec4 lp, vec3 c, vec3 blk, vec3 origin) {
     if (w <= 0.0) return vec3(0.0);
-    vec3 p0 = lightTarget(origin, lp.xyz, blk, vec3(0.0));
-    if (all(equal(p0, lp.xyz))) return c * lightVisible(origin, lp.xyz, blk);
-    vec3 v = lightVisible(origin, lightTarget(origin, lp.xyz, blk, vec3(-0.15, -0.15, -0.15)), blk)
-           + lightVisible(origin, lightTarget(origin, lp.xyz, blk, vec3( 0.15,  0.15, -0.15)), blk)
-           + lightVisible(origin, lightTarget(origin, lp.xyz, blk, vec3( 0.15, -0.15,  0.15)), blk)
-           + lightVisible(origin, lightTarget(origin, lp.xyz, blk, vec3(-0.15,  0.15,  0.15)), blk);
-    return c * v * 0.25;
+    return c * lightVisible(origin, lightTarget(origin, lp.xyz, blk, vec3(0.0)), blk);
 }
 
 void main() {

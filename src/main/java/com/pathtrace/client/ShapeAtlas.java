@@ -9,6 +9,7 @@ import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.IBakedModel;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.renderer.vertex.VertexFormat;
+import net.minecraft.util.EnumBlockRenderType;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
@@ -81,7 +82,15 @@ final class ShapeAtlas {
 
     private int build(World world, BlockPos pos, IBlockState actual) {
         java.util.Arrays.fill(cells, false);
-        boolean any = rasteriseModel(world, pos, actual);
+        // Blocks drawn by a tile-entity renderer (chests, signs, beds, skulls, banners...) have no real
+        // model: asking for one gives the "missing" cube, whose faces rasterise to a hollow full-block
+        // shell that traps every ray starting on the chest and blacks it out. Use their boxes instead.
+        boolean modelled = actual.getRenderType() == EnumBlockRenderType.MODEL;
+        if (modelled) {
+            IBakedModel m = Minecraft.getMinecraft().getBlockRendererDispatcher().getModelForState(actual);
+            modelled = m != Minecraft.getMinecraft().getBlockRendererDispatcher().getBlockModelShapes().getModelManager().getMissingModel();
+        }
+        boolean any = modelled && rasteriseModel(world, pos, actual);
         if (!any) any = rasteriseBoxes(world, pos, actual);
         if (!any) return 0;
         int n = 0;

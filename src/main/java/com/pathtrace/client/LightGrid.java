@@ -45,6 +45,10 @@ final class LightGrid {
     /** How far a light is pushed out of a full glowing block, towards its open faces. Must match common.glsl. */
     static final float PUSH = 0.8f;
     private final double[] ld2 = new double[MAX_LIGHTS];
+    /** Reach of each light: its full range, shrunk where lights are so crowded a cell's list would overflow. */
+    private final float[] lreach = new float[MAX_LIGHTS];
+    private static final float MIN_REACH = 4.5f;
+    private int[] cellCount = new int[0];
     private int[] cellIdx = new int[0];
     private float[] cellScore = new float[0];
     private final FloatBuffer lightBuf = BufferUtils.createFloatBuffer(LIGHT_TEX_W * LIGHT_TEX_H * 4);
@@ -141,12 +145,31 @@ final class LightGrid {
                     llight[i] = light; lcolor[i] = color; loffset[i] = offset; ld2[i] = d2;
                 });
 
-        // 2. per cell, keep the K lights with the highest estimated contribution
+        // 2. where so many lights overlap that a cell would hold more than K, shorten their reach
+        //    (per light, so the lighting stays smooth) instead of dropping lights at cell borders
+        int cells = gx * gy * gz;
+        if (cellCount.length != cells) cellCount = new int[cells];
+        for (int i = 0; i < lightCount; i++) lreach[i] = llight[i] + 0.5f;
+        for (int iter = 0; iter < 5; iter++) {
+            Arrays.fill(cellCount, 0);
+            for (int i = 0; i < lightCount; i++) visitCells(i, -1);
+            boolean changed = false;
+            for (int i = 0; i < lightCount; i++) {
+                int occ = visitCells(i, -2);
+                if (occ > K && lreach[i] > MIN_REACH) {
+                    lreach[i] = Math.max(MIN_REACH, lreach[i] * (float) Math.pow((double) K / occ, 0.45));
+                    changed = true;
+                }
+            }
+            if (!changed) break;
+        }
+
+        // 3. per cell, keep the K lights with the highest estimated contribution
         Arrays.fill(cellIdx, -1);
         Arrays.fill(cellScore, 0f);
         float strength = (float) PTConfig.pointLightStrength;
         for (int i = 0; i < lightCount; i++) {
-            float r = llight[i] + 0.5f;
+            float r = lreach[i];
             int c0x = Math.max(0, (int) Math.floor((lx[i] - r) / CELL)), c1x = Math.min(gx - 1, (int) Math.floor((lx[i] + r) / CELL));
             int c0y = Math.max(0, (int) Math.floor((ly[i] - r) / CELL)), c1y = Math.min(gy - 1, (int) Math.floor((ly[i] + r) / CELL));
             int c0z = Math.max(0, (int) Math.floor((lz[i] - r) / CELL)), c1z = Math.min(gz - 1, (int) Math.floor((lz[i] + r) / CELL));
@@ -176,8 +199,8 @@ final class LightGrid {
             if (i < lightCount) {
                 float[] rgb = LightColors.RGB[Math.min(lcolor[i], LightColors.RGB.length - 1)];
                 float k = llight[i] / 15f * strength;
-                lightBuf.put(lx[i]).put(ly[i]).put(lz[i]).put(llight[i] + 0.5f);
-                lightBuf.put(rgb[0] * k).put(rgb[1] * k).put(rgb[2] * k).put((float) loffset[i]);
+                lightBuf.put(lx[i]).put(ly[i]).put(lz[i]).put(lreach[i]);
+                lightBuf.put(rgb[0] * k).put(rgb[1] * k).put(rgb[2] * k).put((float) (loffset[i] + 32 * llight[i]));
             } else {
                 for (int j = 0; j < 8; j++) lightBuf.put(0f);
             }
@@ -188,7 +211,6 @@ final class LightGrid {
 
         // cell lists, strongest first so the shader can stop at the first -1
         cellBuf.clear();
-        int cells = gx * gy * gz;
         int[] tmp = new int[K];
         float[] tmpS = new float[K];
         for (int c = 0; c < cells; c++) {
@@ -206,5 +228,26 @@ final class LightGrid {
         cellBuf.flip();
         GlStateManager.bindTexture(cellTex);
         GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, CELL_TEX_W, cellTexH, GL11.GL_RGBA, GL11.GL_FLOAT, cellBuf);
+    }
+
+    /** mode -1: count light i into every cell it reaches. mode -2: the fullest cell it reaches. */
+    private int visitCells(int i, int mode) {
+        float r = lreach[i];
+        int c0x = Math.max(0, (int) Math.floor((lx[i] - r) / CELL)), c1x = Math.min(gx - 1, (int) Math.floor((lx[i] + r) / CELL));
+        int c0y = Math.max(0, (int) Math.floor((ly[i] - r) / CELL)), c1y = Math.min(gy - 1, (int) Math.floor((ly[i] + r) / CELL));
+        int c0z = Math.max(0, (int) Math.floor((lz[i] - r) / CELL)), c1z = Math.min(gz - 1, (int) Math.floor((lz[i] + r) / CELL));
+        int max = 0;
+        for (int cz2 = c0z; cz2 <= c1z; cz2++)
+            for (int cy2 = c0y; cy2 <= c1y; cy2++)
+                for (int cx2 = c0x; cx2 <= c1x; cx2++) {
+                    float dx = Math.max(0, Math.max(cx2 * CELL - lx[i], lx[i] - (cx2 + 1) * CELL));
+                    float dy = Math.max(0, Math.max(cy2 * CELL - ly[i], ly[i] - (cy2 + 1) * CELL));
+                    float dz = Math.max(0, Math.max(cz2 * CELL - lz[i], lz[i] - (cz2 + 1) * CELL));
+                    if (dx * dx + dy * dy + dz * dz >= r * r) continue;
+                    int c = (cz2 * gy + cy2) * gx + cx2;
+                    if (mode == -1) cellCount[c]++;
+                    else max = Math.max(max, cellCount[c]);
+                }
+        return max;
     }
 }

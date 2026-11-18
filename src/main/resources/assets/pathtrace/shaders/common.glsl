@@ -372,7 +372,11 @@ bool g_wantTop = false;
 bool g_exclude = false;
 vec3 g_ex0, g_ex1, g_ex2, g_ex3;
 
-float lightTerm(vec4 lp, vec3 lc, vec3 p, vec3 n, out vec3 contrib) {
+// lp.w = how far the light reaches here: its full range, or less where lights are crowded
+// (the light grid shrinks it so no list overflows). `range` = its full range.
+// The light's shape never depends on lp.w except for a smooth fade to zero at the end,
+// so the lighting is continuous everywhere.
+float lightTerm(vec4 lp, vec3 lc, float range, vec3 p, vec3 n, out vec3 contrib) {
     vec3 L = lp.xyz - p;
     float d2 = dot(L, L);
     contrib = vec3(0.0);
@@ -381,11 +385,17 @@ float lightTerm(vec4 lp, vec3 lc, vec3 p, vec3 n, out vec3 contrib) {
     float ndl = dot(n, L / d);
     if (ndl <= -0.25) return 0.0;
     float fd = max(d, lightMinDist);
-    float x = max(1.0 - fd / lp.w, 0.0);
+    float x = max(1.0 - fd / range, 0.0);
     float wrap = (ndl + 0.25) / 1.25;      // block light spreads a little past grazing angles, like vanilla
-    contrib = lc * (wrap * x * x / (1.0 + 0.3 * fd * fd));
+    float fade = 1.0;
+    if (lp.w < range - 0.01) { float q = d2 / (lp.w * lp.w); fade = (1.0 - q) * (1.0 - q); }
+    contrib = lc * (wrap * x * x * fade / (1.0 + 0.3 * fd * fd));
     return luminance(contrib);
 }
+
+// light texel 2, w = offset code + 32 * light level (0 for dynamic lights: their w is their range)
+float lightCode(float w) { return mod(w, 32.0); }
+float lightRange(vec4 lp, float w) { float lv = floor(w / 32.0); return lv > 0.0 ? lv + 0.5 : lp.w; }
 
 // The block a light belongs to: lights of full glowing blocks are pushed out towards their open faces.
 vec3 lightBlock(vec3 lp, float code) {
@@ -396,16 +406,17 @@ vec3 lightBlock(vec3 lp, float code) {
 
 void visitLight(vec4 lp, vec4 lcw, vec3 p, vec3 n) {
     vec3 lc = lcw.rgb;
-    vec3 blk = lightBlock(lp.xyz, lcw.w);
+    vec3 blk = lightBlock(lp.xyz, lightCode(lcw.w));
+    float range = lightRange(lp, lcw.w);
     if (all(equal(blk, g_ownCell))) {
-        g_glow = max(g_glow, lc / max(max(lc.r, lc.g), max(lc.b, 1e-4)) * ((lp.w - 0.5) / 15.0));
+        g_glow = max(g_glow, lc / max(max(lc.r, lc.g), max(lc.b, 1e-4)) * ((range - 0.5) / 15.0));
     }
     if (g_exclude) {
         if (all(lessThan(abs(lp.xyz - g_ex0), vec3(1e-3))) || all(lessThan(abs(lp.xyz - g_ex1), vec3(1e-3)))
          || all(lessThan(abs(lp.xyz - g_ex2), vec3(1e-3))) || all(lessThan(abs(lp.xyz - g_ex3), vec3(1e-3)))) return;
     }
     vec3 c;
-    float w = lightTerm(lp, lc, p, n, c);
+    float w = lightTerm(lp, lc, range, p, n, c);
     if (w <= 0.0) return;
     g_sum += c;
     g_total += w;
