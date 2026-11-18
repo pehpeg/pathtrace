@@ -128,14 +128,20 @@ final class VoxelVolume {
         heightsDirty = false;
         if (scrollAxis >= 0) stepScroll();
         processDirty();
-        if (PTConfig.refreshSlicesPerFrame > 0 && ++refreshTick >= REFRESH_EVERY) {
-            refreshTick = 0;
+        // background re-scan: an eighth of a slice (16 x 128 blocks) per frame, so it never spikes a frame
+        if (PTConfig.refreshSlicesPerFrame > 0) {
             for (int i = 0; i < PTConfig.refreshSlicesPerFrame; i++) {
-                int z = refreshZ;
-                fillSlice(ox, oy, oz, z);
-                uploadWorldBox(ox, oy, oz + z, N, N, 1);
-                refreshCoarse(ox, oy, oz + z, N, N, 1);
-                refreshZ = (refreshZ + 1) % N;
+                int z = refreshZ, x0 = refreshPart * (N / REFRESH_EVERY);
+                for (int x = x0; x < x0 + N / REFRESH_EVERY; x++) {
+                    fillHeightWorld(ox + x, oz + z);
+                    for (int y = 0; y < N; y++) fillVoxelWorld(ox + x, oy + y, oz + z);
+                }
+                uploadWorldBox(ox + x0, oy, oz + z, N / REFRESH_EVERY, N, 1);
+                refreshCoarse(ox + x0, oy, oz + z, N / REFRESH_EVERY, N, 1);
+                if (++refreshPart == REFRESH_EVERY) {
+                    refreshPart = 0;
+                    refreshZ = (refreshZ + 1) % N;
+                }
             }
         }
         if (heightsDirty) uploadHeights();
@@ -143,7 +149,7 @@ final class VoxelVolume {
 
     /** Background re-scan (a safety net; block and chunk changes arrive as events): one slice every this many frames. */
     private static final int REFRESH_EVERY = 8;
-    private int refreshTick;
+    private int refreshPart;
 
     // scrolling state: which axis, its new origin, the world range [scrollFrom, scrollTo) still to fill
     private int scrollAxis = -1, scrollTarget, scrollFrom, scrollTo, scrollStart;

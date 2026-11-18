@@ -63,7 +63,7 @@ public class PTConfig {
 
     @Config.Comment("How coloured block light is: 1 = natural tints, 1.6 = clearly orange torches, red redstone, blue sea lanterns...")
     @Config.RangeDouble(min = 0.0, max = 3.0)
-    public static double lightSaturation = 1.7;
+    public static double lightSaturation = 1.6;
 
     @Config.Comment("Light from held items, dropped items, burning mobs, blazes and fireballs.")
     public static boolean dynamicLights = true;
