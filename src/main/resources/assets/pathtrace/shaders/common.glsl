@@ -471,14 +471,15 @@ float lightCrowding(float total) {
 }
 float g_lightScale = 1.0;
 
-// Lights of full glowing blocks sit just outside the face they shine from. Treat them as a small
-// square on that face: a point on it at (u, v) in [-1, 1]. Other lights stay points.
-vec3 lightOnFace(vec3 lp, vec3 blk, vec2 uv) {
-    if (all(greaterThanEqual(lp, blk)) && all(lessThan(lp, blk + 1.0))) return lp;
-    vec3 o = normalize(lp - (blk + 0.5));
-    vec3 t = normalize(abs(o.y) < 0.9 ? cross(o, vec3(0.0, 1.0, 0.0)) : cross(o, vec3(1.0, 0.0, 0.0)));
-    vec3 b = cross(o, t);
-    return lp + (t * uv.x + b * uv.y) * 0.4;
+// Where to aim a shadow ray at a light. A glowing full block is a glowing cube, not a point: aim at
+// the point of the block closest to p (moved by `j`, in blocks, for soft edges). From there the
+// ray only crosses what really is between p and the glowing faces it can see. A light sitting at
+// the centre of a block in a wall would otherwise be shadowed by the wall itself at grazing angles.
+vec3 lightTarget(vec3 p, vec3 lp, vec3 blk, vec3 j) {
+    if (!insideVolume(blk)) return lp;
+    if (!isSolid(fetchVoxel(blk)) || shapeIdAt(blk) > 0.5) return lp;   // torches etc.: a point
+    vec3 lo = blk + 0.05, hi = blk + 0.95;
+    return clamp(clamp(p, lo, hi) + j, lo, hi);
 }
 
 // Find the strongest lights at p (the ones direct.fsh shadows exactly), keeping at most `count`.
@@ -511,7 +512,7 @@ vec3 pointLights(vec3 p, vec3 n, bool shadows) {
     visitLights(p, n);
     float k = lightCrowding(g_total);
     if (g_total <= 1e-5 || !shadows) return g_sum * k;
-    vec3 target = lightOnFace(g_pick.xyz, g_pickCell, vec2(rand(), rand()) * 2.0 - 1.0);
+    vec3 target = lightTarget(p, g_pick.xyz, g_pickCell, (vec3(rand(), rand(), rand()) - 0.5) * 0.6);
     return g_sum * k * lightVisible(p, target, g_pickCell);
 }
 

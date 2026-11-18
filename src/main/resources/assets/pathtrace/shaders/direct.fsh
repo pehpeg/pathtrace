@@ -31,12 +31,12 @@ vec3 sunVisibilityHard(vec3 p) {
 // instead of the hard wedges a single point casts in corners.
 vec3 slot(float w, vec4 lp, vec3 c, vec3 blk, vec3 origin) {
     if (w <= 0.0) return vec3(0.0);
-    vec3 p0 = lightOnFace(lp.xyz, blk, vec2(0.0));
+    vec3 p0 = lightTarget(origin, lp.xyz, blk, vec3(0.0));
     if (all(equal(p0, lp.xyz))) return c * lightVisible(origin, lp.xyz, blk);
-    vec3 v = lightVisible(origin, lightOnFace(lp.xyz, blk, vec2(-0.5, -0.5)), blk)
-           + lightVisible(origin, lightOnFace(lp.xyz, blk, vec2( 0.5, -0.5)), blk)
-           + lightVisible(origin, lightOnFace(lp.xyz, blk, vec2(-0.5,  0.5)), blk)
-           + lightVisible(origin, lightOnFace(lp.xyz, blk, vec2( 0.5,  0.5)), blk);
+    vec3 v = lightVisible(origin, lightTarget(origin, lp.xyz, blk, vec3(-0.15, -0.15, -0.15)), blk)
+           + lightVisible(origin, lightTarget(origin, lp.xyz, blk, vec3( 0.15,  0.15, -0.15)), blk)
+           + lightVisible(origin, lightTarget(origin, lp.xyz, blk, vec3( 0.15, -0.15,  0.15)), blk)
+           + lightVisible(origin, lightTarget(origin, lp.xyz, blk, vec3(-0.15,  0.15,  0.15)), blk);
     return c * v * 0.25;
 }
 
