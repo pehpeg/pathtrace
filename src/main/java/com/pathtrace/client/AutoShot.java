@@ -2,7 +2,11 @@ package com.pathtrace.client;
 
 import com.pathtrace.PTConfig;
 import com.pathtrace.PathTraceMod;
+import net.minecraft.block.BlockChest;
 import net.minecraft.block.BlockStainedGlass;
+import net.minecraft.block.BlockTorch;
+import net.minecraft.block.BlockWallSign;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.item.EnumDyeColor;
 import net.minecraft.client.Minecraft;
@@ -72,6 +76,10 @@ final class AutoShot {
     private static final double[] GLASS = {31.5, 3.0, -1.5}, GLASS_T = {31.0, 0.0, 3.5};
     // torch + pillar ~70 blocks away (outside the detailed grid)
     private static final double[] FAR_POINT = {-6.0, 16.0, 10.0}, FAR_POINT_T = {-6.0, 0.0, 80.0};
+    // double chest with a wall torch above, wall + standing signs
+    private static final double[] CHEST = {38.0, 0.3, 17.0}, CHEST_T = {38.0, 0.8, 21.5};
+    // room lined with glowstone (many lights close together), with a pillar inside
+    private static final double[] GLOWROOM = {43.5, 0.0, 3.5}, GLOWROOM_T = {46.5, 1.0, 7.5};
     private static final long DAY = 2000L, NIGHT = 18000L;
 
     private static final Shot[] SHOTS = {
@@ -118,6 +126,14 @@ final class AutoShot {
             new Shot("41_night_far_point_shadow", NIGHT, false, true, false, 0, FAR_POINT, FAR_POINT_T),
             new Shot("42_night_far_point_shadow_no_lod", NIGHT, false, true, false, 0, FAR_POINT, FAR_POINT_T).noLod(),
             new Shot("43_night_far_point_shadow_vanilla", NIGHT, false, false, false, 0, FAR_POINT, FAR_POINT_T),
+            new Shot("44_night_chest_pathtrace", NIGHT, false, true, false, 0, CHEST, CHEST_T),
+            new Shot("45_night_chest_vanilla", NIGHT, false, false, false, 0, CHEST, CHEST_T),
+            new Shot("46_night_chest_debug_direct", NIGHT, false, true, false, 1, CHEST, CHEST_T),
+            new Shot("47_night_chest_debug_bounce", NIGHT, false, true, false, 2, CHEST, CHEST_T),
+            new Shot("48_night_glowroom_pathtrace", NIGHT, false, true, false, 0, GLOWROOM, GLOWROOM_T),
+            new Shot("49_night_glowroom_vanilla", NIGHT, false, false, false, 0, GLOWROOM, GLOWROOM_T),
+            new Shot("50_night_glowroom_debug_direct", NIGHT, false, true, false, 1, GLOWROOM, GLOWROOM_T),
+            new Shot("51_night_glowroom_debug_bounce", NIGHT, false, true, false, 2, GLOWROOM, GLOWROOM_T),
     };
 
     private int index = -1;          // -1 = not in a world yet
@@ -273,6 +289,25 @@ final class AutoShot {
             }
             set(w, b, 31, y, 4, glass(EnumDyeColor.RED));
         }
+        // double chest against a wall, wall torch above it, wall sign and standing sign
+        for (int x = 36; x <= 39; x++) for (int y = 0; y <= 2; y++) set(w, b, x, y, 22, Blocks.COBBLESTONE.getDefaultState());
+        set(w, b, 37, 0, 21, Blocks.CHEST.getDefaultState().withProperty(BlockChest.FACING, EnumFacing.SOUTH));
+        set(w, b, 38, 0, 21, Blocks.CHEST.getDefaultState().withProperty(BlockChest.FACING, EnumFacing.SOUTH));
+        set(w, b, 37, 1, 21, Blocks.TORCH.getDefaultState().withProperty(BlockTorch.FACING, EnumFacing.SOUTH));
+        set(w, b, 38, 1, 21, Blocks.WALL_SIGN.getDefaultState().withProperty(BlockWallSign.FACING, EnumFacing.SOUTH));
+        set(w, b, 40, 0, 20, Blocks.STANDING_SIGN.getDefaultState());
+        // room lined with glowstone (checkerboard walls), a door and a pillar inside
+        for (int x = 42; x <= 48; x++)
+            for (int z = 2; z <= 8; z++)
+                for (int y = 0; y <= 4; y++) {
+                    boolean wall = x == 42 || x == 48 || z == 2 || z == 8 || y == 4;
+                    if (!wall) continue;
+                    boolean glow = ((x + y + z) & 1) == 0;
+                    set(w, b, x, y, z, glow ? Blocks.GLOWSTONE.getDefaultState() : Blocks.STONEBRICK.getDefaultState());
+                }
+        set(w, b, 43, 0, 2, Blocks.AIR.getDefaultState());
+        set(w, b, 43, 1, 2, Blocks.AIR.getDefaultState());
+        for (int y = 0; y <= 3; y++) set(w, b, 45, y, 5, Blocks.STONEBRICK.getDefaultState());
         // far away: a torch with a pillar next to it
         set(w, b, -8, 0, 80, Blocks.TORCH.getDefaultState());
         for (int y = 0; y <= 2; y++) set(w, b, -6, y, 80, Blocks.COBBLESTONE.getDefaultState());
