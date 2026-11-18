@@ -91,7 +91,7 @@ final class AutoShot {
     private static final double[] CORRIDOR = {85.5, 0.0, 12.5}, CORRIDOR_T = {110.0, 1.0, 12.5};
 
     /** While iterating on one problem: only take the shots from FOCUS_FROM on. */
-    private static final boolean FOCUS = true;
+    private static final boolean FOCUS = false;
     private static final String FOCUS_FROM = "69";
 
     private static final Shot[] SHOTS = filter(new Shot[] {
