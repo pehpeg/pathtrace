@@ -115,7 +115,8 @@ bool microSolid(vec4 a, vec4 b, vec3 m) {
 }
 
 // Walk the 4x4x4 cells of `cell`, which the ray enters at distance tEnter through face nEnter.
-// skipFirst: the ray starts inside this block, so ignore the small cell it starts in (its own surface).
+// skipFirst: the ray starts inside this block (on its surface). The 4x4x4 shape is coarser than the
+// real model, so the start can lie inside it: ignore solid cells until the ray reaches an open one.
 bool traceMicro(vec3 ro, vec3 rd, vec3 invd, vec3 stp, vec3 cell, float tEnter, vec3 nEnter,
                 vec4 a, vec4 b, bool skipFirst, out float tHit, out vec3 nHit) {
     vec3 p = (ro + rd * (tEnter + 1e-4) - cell) * 4.0;
@@ -123,8 +124,11 @@ bool traceMicro(vec3 ro, vec3 rd, vec3 invd, vec3 stp, vec3 cell, float tEnter, 
     vec3 tMax = abs(cell + (m + step(0.0, rd)) * 0.25 - ro) * invd;
     float t = tEnter;
     vec3 n = nEnter;
+    bool inSelf = skipFirst;
     for (int i = 0; i < 12; i++) {
-        if (!(skipFirst && i == 0) && microSolid(a, b, m)) {
+        bool solid = microSolid(a, b, m);
+        if (inSelf && !solid) inSelf = false;
+        if (!inSelf && solid) {
             tHit = t;
             nHit = n;
             return true;
