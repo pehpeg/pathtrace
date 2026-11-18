@@ -22,8 +22,8 @@ import java.util.Map;
  * and liquids (glowstone, sea lanterns, lava...) have their light placed just outside their open
  * faces, so a light set flush into a floor or wall still lights the surfaces around it.
  * <p>
- * The same scan records which 2x2x2-block cells of each section are mostly solid (5+ of 8 blocks),
- * as 512 bits; {@link LodVolume} builds the far shadow grid from those.
+ * The same scan records which blocks of each section are solid (4096 bits, index (y*16+z)*16+x);
+ * {@link LodVolume} builds the far shadow grid from those.
  */
 final class EmitterIndex {
     private static final int[] EMPTY = new int[0];
@@ -31,7 +31,7 @@ final class EmitterIndex {
     private final HashMap<Long, int[]> sections = new HashMap<>();
     private final HashMap<Long, long[]> occupancy = new HashMap<>();   // absent = no solid cells
     private final ArrayDeque<Long> changedOccupancy = new ArrayDeque<>();
-    private final int[] cellCount = new int[512];
+    private final long[] solidBits = new long[64];
     private final ArrayDeque<Long> queue = new ArrayDeque<>();
     private final HashSet<Long> queued = new HashSet<>();
     private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -114,7 +114,7 @@ final class EmitterIndex {
         }
         ExtendedBlockStorage es = chunk.getBlockStorageArray()[sy];
         int n = 0;
-        java.util.Arrays.fill(cellCount, 0);
+        java.util.Arrays.fill(solidBits, 0L);
         boolean anySolid = false;
         if (es != null && !es.isEmpty()) {
             for (int y = 0; y < 16; y++)
@@ -124,7 +124,8 @@ final class EmitterIndex {
                         Material m = st.getMaterial();
                         if (m == Material.AIR) continue;
                         if (st.isOpaqueCube() || m == Material.LEAVES) {
-                            cellCount[((z >> 1) * 8 + (y >> 1)) * 8 + (x >> 1)]++;
+                            int bit = (y * 16 + z) * 16 + x;
+                            solidBits[bit >> 6] |= 1L << (bit & 63);
                             anySolid = true;
                         }
                         pos.setPos((sx << 4) + x, (sy << 4) + y, (sz << 4) + z);
@@ -137,14 +138,7 @@ final class EmitterIndex {
                                 | LightColors.forBlock(st.getBlock()) << 16 | offset << 19;
                     }
         }
-        long[] mask = null;
-        if (anySolid) {
-            mask = new long[8];
-            for (int c = 0; c < 512; c++) if (cellCount[c] >= 5) mask[c >> 6] |= 1L << (c & 63);
-            boolean any = false;
-            for (long l : mask) any |= l != 0;
-            if (!any) mask = null;
-        }
+        long[] mask = anySolid ? solidBits.clone() : null;
         long[] oldMask = mask == null ? occupancy.remove(k) : occupancy.put(k, mask);
         if (!java.util.Arrays.equals(oldMask, mask)) changedOccupancy.add(k);
 
@@ -174,7 +168,7 @@ final class EmitterIndex {
         return (Integer.signum(sx) + 1) + 3 * (Integer.signum(sy) + 1) + 9 * (Integer.signum(sz) + 1);
     }
 
-    /** 512-bit solid mask of 2x2x2 cells for a section, or null if it has none. Bit index (z*8+y)*8+x. */
+    /** 4096-bit solid mask of a section, or null if it has nothing solid. Bit index (y*16+z)*16+x. */
     long[] occupancy(int sx, int sy, int sz) {
         return occupancy.get(key(sx, sy, sz));
     }

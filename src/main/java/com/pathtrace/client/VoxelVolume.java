@@ -20,7 +20,8 @@ import java.util.LinkedHashSet;
 /**
  * A 128^3 block grid around the camera, uploaded as a 3D texture the shaders ray-march.
  * <ul>
- *   <li>voxel texel: RGB = block colour, A = 128 (solid) | colourIndex << 4 | light level</li>
+ *   <li>voxel texel: RGB = block colour, A = 128 (solid) | colourIndex << 4 | light level;
+ *       A = 64 marks stained glass: not solid, but light passing through takes its colour</li>
  *   <li>coarse texture: one texel per 4x4x4 cell, non-zero if any block in it is solid (empty-space skipping)</li>
  *   <li>height texture: world height per column, so rays leaving the grid know whether they reach the sky</li>
  *   <li>shape texture: for non-full blocks (slabs, stairs, fences, torches, plants...) the number of
@@ -211,6 +212,19 @@ final class VoxelVolume {
         if (!full) {
             // glass and liquids let light through (lava etc. still count as a full glowing block)
             boolean passThrough = m == Material.GLASS || m.isLiquid() || m == Material.PORTAL;
+            if (m == Material.GLASS && light == 0) {
+                int gc = s.getMapColor(world, pos).colorValue;    // stained glass has its dye colour
+                if (gc == 0) {
+                    clearVoxel(idx);                           // clear glass: nothing to do
+                } else {
+                    voxels.put(idx, (byte) (gc >> 16));
+                    voxels.put(idx + 1, (byte) (gc >> 8));
+                    voxels.put(idx + 2, (byte) gc);
+                    voxels.put(idx + 3, (byte) 64);
+                    shapeIds.putInt(idx, 0);
+                }
+                return;
+            }
             int id = passThrough ? 0 : shapes.shapeFor(world, pos, s);
             if (id == 0 && light == 0) {
                 clearVoxel(idx);
@@ -237,7 +251,7 @@ final class VoxelVolume {
         for (int z = cz * 4; z < cz * 4 + 4; z++)
             for (int y = cy * 4; y < cy * 4 + 4; y++)
                 for (int x = cx * 4; x < cx * 4 + 4; x++)
-                    if ((voxels.get((((z * N + y) * N + x) * 4) + 3) & 0x80) != 0) {
+                    if ((voxels.get((((z * N + y) * N + x) * 4) + 3) & 0xC0) != 0) {   // solid or tinted
                         v = (byte) 255;
                         break search;
                     }

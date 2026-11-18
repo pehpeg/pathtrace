@@ -8,6 +8,7 @@ Real-time path traced lighting for **Minecraft 1.12.2** (Forge 14.23.5.x, client
 - **Block lights** (torches, glowstone, lava, sea lanterns…) sampled directly for clean, coloured light
 - **Dynamic lights**: held torches and other light sources, dropped items, burning mobs, blazes, fireballs
 - **Lit first-person hand and held item**
+- **Coloured light through stained glass**
 - **Noise-free, pixel-snapped shadows** from the sun and the strongest nearby lights
 - Wavelet denoiser for bounce light, temporal accumulation and auto exposure
 
@@ -27,12 +28,17 @@ gradlew build        (Windows)
 
 The jar is written to `build/libs/pathtrace-<version>.jar`. Ignore the `-dev` and `-sources` jars.
 
-## Controls
+## Commands
 
-| Key | Action |
-|-----|--------|
-| **P** | Toggle path tracing |
-| **O** | Reload shaders |
+| Command | Action |
+|---------|--------|
+| `/pathtrace on` / `off` / `toggle` | Turn path tracing on or off (`/pt` works too) |
+| `/pathtrace status` | Show whether it's on |
+| `/pathtrace set <setting> <value>` | Change any setting below (saved to the config); tab completes |
+| `/pathtrace get <setting>` | Show a setting's value |
+| `/pathtrace reload` | Reload shaders |
+
+The same on/off and reload actions can be bound to keys under Controls → PathTrace (unbound by default).
 
 ## Settings
 
@@ -53,7 +59,7 @@ Mods → PathTrace → Config, or `config/pathtrace.cfg`.
 | `dynamicLights` | true | Lights from entities and items |
 | `litHand` | true | Path traced lighting on the first-person hand |
 | `bloom`, `bloomStrength` | true, 1.6 | Soft glow around light sources (flames, glowstone, lava…) |
-| `lodShadows` | true | Shadows beyond the detailed 128-block grid, from a coarser grid out to the render distance |
+| `lodShadows` | true | Shadows beyond the detailed 128-block grid, from a 1-block grid out to the render distance |
 | `debugView` | 0 | 1 = direct light only, 2 = bounce light only, 3 = surface normals |
 
 ## How it works
@@ -86,6 +92,6 @@ Run the same thing locally with `gradlew runClient -Pautoshot`.
   texture-pixel resolution (16×16×16 per block), so light passes through the gaps in bars, fences, leaves
   of plants etc. Glass and liquids let light through, small light sources (torches) don't cast shadows,
   and mobs don't cast shadows yet. Up to 1024 distinct non-full block shapes are kept.
-- Beyond about 64 blocks, shadows come from a coarser grid (2-block cells, 4 above render distance 8), so they
-  are blockier, and thin things (single blocks, fences) may not cast them.
+- Beyond about 64 blocks, shadows come from a 1-block grid of full blocks, so non-full blocks (fences, slabs,
+  plants) and stained glass don't cast shadows or colour light there.
 - Not compatible with OptiFine shaders.

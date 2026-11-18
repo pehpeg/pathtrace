@@ -20,9 +20,9 @@ import org.lwjgl.input.Keyboard;
 
 public final class ClientHandler {
     private static final KeyBinding TOGGLE =
-            new KeyBinding("key.pathtrace.toggle", Keyboard.KEY_P, "key.categories.pathtrace");
+            new KeyBinding("key.pathtrace.toggle", Keyboard.KEY_NONE, "key.categories.pathtrace");   // use /pathtrace instead
     private static final KeyBinding RELOAD =
-            new KeyBinding("key.pathtrace.reload", Keyboard.KEY_O, "key.categories.pathtrace");
+            new KeyBinding("key.pathtrace.reload", Keyboard.KEY_NONE, "key.categories.pathtrace");
 
     private static final PathTraceRenderer RENDERER = new PathTraceRenderer();
     private static boolean enabled = true;
@@ -31,11 +31,24 @@ public final class ClientHandler {
         ClientRegistry.registerKeyBinding(TOGGLE);
         ClientRegistry.registerKeyBinding(RELOAD);
         MinecraftForge.EVENT_BUS.register(new ClientHandler());
+        net.minecraftforge.client.ClientCommandHandler.instance.registerCommand(new PathTraceCommand());
         if (AutoShot.requested()) {
             PathTraceMod.LOG.info("PathTrace autoshot test mode enabled");
             MinecraftForge.EVENT_BUS.register(new AutoShot());
         }
-        PathTraceMod.LOG.info("PathTrace loaded. P = toggle, O = reload shaders.");
+        PathTraceMod.LOG.info("PathTrace loaded. Use /pathtrace on|off|toggle|status|reload|set.");
+    }
+
+    static boolean isEnabled() {
+        return enabled;
+    }
+
+    static void reloadShaders() {
+        RENDERER.reloadShaders();
+    }
+
+    static void resetHistory() {
+        RENDERER.resetHistory();
     }
 
     static void setEnabled(boolean on) {

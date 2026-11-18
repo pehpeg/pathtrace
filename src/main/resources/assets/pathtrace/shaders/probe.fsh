@@ -16,7 +16,7 @@ void main() {
     if (cellc.y > 7.5) {
         if (cellc.x < 0.5) {
             float vis = 0.0;
-            for (int k = 0; k < 4; k++) vis += sunVisibility(eyePos);
+            for (int k = 0; k < 4; k++) vis += dot(sunVisibility(eyePos), vec3(0.3333));
             result = vec3(vis * 0.25);
         }
     } else {

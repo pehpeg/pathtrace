@@ -466,11 +466,14 @@ final class PathTraceRenderer {
         s.set("lightTexSize", lightGrid.lightTexWidth(), lightGrid.lightTexHeight());
         s.set("cellTexSize", lightGrid.cellTexWidth(), (float) lightGrid.cellTexH);
         boolean lodOn = PTConfig.lodShadows && lod.isBuilt();
-        if (lodOn) bindRaw3D(10, lod.texture());
+        if (lodOn) {
+            bindRaw3D(10, lod.texture());
+            bindRaw3D(13, lod.coarseTexture());
+        }
         s.set("lodTex", 10);
+        s.set("lodCoarseTex", 13);
         s.set("lodEnabled", lodOn ? 1f : 0f);
-        s.set("lodCell", (float) lod.cell);
-        s.set("lodSize", (float) LodVolume.SIZE);
+        s.set("lodSize", (float) lod.extent, (float) LodVolume.HEIGHT, (float) lod.extent);
         s.set("lodOrigin", (float) (lod.ox - volume.originX()), (float) (0 - volume.originY()),
                 (float) (lod.oz - volume.originZ()));
     }

@@ -70,7 +70,7 @@ public class PTConfig {
     @Config.RangeDouble(min = 0.0, max = 5.0)
     public static double bloomStrength = 1.6;
 
-    @Config.Comment("Shadows beyond the detailed 128-block grid, from a coarser grid (2-4 block cells) out to the render distance.")
+    @Config.Comment("Shadows beyond the detailed 128-block grid, from a 1-block grid out to the render distance.")
     public static boolean lodShadows = true;
 
     @Config.Comment("Debug view: 0 = normal, 1 = direct light only, 2 = bounce/sky light only, 3 = surface normals.")

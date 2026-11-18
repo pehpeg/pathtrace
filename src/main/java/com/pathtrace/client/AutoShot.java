@@ -2,7 +2,9 @@ package com.pathtrace.client;
 
 import com.pathtrace.PTConfig;
 import com.pathtrace.PathTraceMod;
+import net.minecraft.block.BlockStainedGlass;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.item.EnumDyeColor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiMainMenu;
 import net.minecraft.client.tutorial.TutorialSteps;
@@ -66,6 +68,10 @@ final class AutoShot {
     // close-up of the fence / iron bars bases (shadows inside non-full blocks' own spaces)
     private static final double[] CLOSE = {20.0, 0.5, 15.0}, CLOSE_T = {20.0, 0.0, 10.0};
     private static final double[] TOP = {20.0, 7.0, 12.0}, TOP_T = {20.0, 0.0, 11.0};
+    // torch boxed in by green / red / blue stained glass
+    private static final double[] GLASS = {31.5, 3.0, -1.5}, GLASS_T = {31.0, 0.0, 3.5};
+    // torch + pillar ~70 blocks away (outside the detailed grid)
+    private static final double[] FAR_POINT = {-6.0, 16.0, 10.0}, FAR_POINT_T = {-6.0, 0.0, 80.0};
     private static final long DAY = 2000L, NIGHT = 18000L;
 
     private static final Shot[] SHOTS = {
@@ -107,6 +113,11 @@ final class AutoShot {
             new Shot("36_day_partial_top_debug_direct", DAY, false, true, false, 1, TOP, TOP_T),
             new Shot("37_night_partial_top_debug_direct", NIGHT, false, true, false, 1, TOP, TOP_T),
             new Shot("38_day_partial_top_normals", DAY, false, true, false, 3, TOP, TOP_T),
+            new Shot("39_night_glass_pathtrace", NIGHT, false, true, false, 0, GLASS, GLASS_T),
+            new Shot("40_night_glass_vanilla", NIGHT, false, false, false, 0, GLASS, GLASS_T),
+            new Shot("41_night_far_point_shadow", NIGHT, false, true, false, 0, FAR_POINT, FAR_POINT_T),
+            new Shot("42_night_far_point_shadow_no_lod", NIGHT, false, true, false, 0, FAR_POINT, FAR_POINT_T).noLod(),
+            new Shot("43_night_far_point_shadow_vanilla", NIGHT, false, false, false, 0, FAR_POINT, FAR_POINT_T),
     };
 
     private int index = -1;          // -1 = not in a world yet
@@ -253,6 +264,22 @@ final class AutoShot {
         // light sources flush with the floor
         set(w, b, 26, -1, 16, Blocks.GLOWSTONE.getDefaultState());
         for (int x = 28; x <= 30; x++) for (int z = 14; z <= 16; z++) set(w, b, x, -1, z, Blocks.LAVA.getDefaultState());
+        // torch in a box of stained glass (open towards the camera)
+        set(w, b, 31, 0, 3, Blocks.TORCH.getDefaultState());
+        for (int y = 0; y <= 1; y++) {
+            for (int z = 3; z <= 4; z++) {
+                set(w, b, 30, y, z, glass(EnumDyeColor.LIME));
+                set(w, b, 32, y, z, glass(EnumDyeColor.LIGHT_BLUE));
+            }
+            set(w, b, 31, y, 4, glass(EnumDyeColor.RED));
+        }
+        // far away: a torch with a pillar next to it
+        set(w, b, -8, 0, 80, Blocks.TORCH.getDefaultState());
+        for (int y = 0; y <= 2; y++) set(w, b, -6, y, 80, Blocks.COBBLESTONE.getDefaultState());
+    }
+
+    private static IBlockState glass(EnumDyeColor c) {
+        return Blocks.STAINED_GLASS.getDefaultState().withProperty(BlockStainedGlass.COLOR, c);
     }
 
     private static void set(WorldServer w, BlockPos b, int x, int y, int z, IBlockState s) {
