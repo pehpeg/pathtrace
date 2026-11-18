@@ -437,10 +437,10 @@ final class PathTraceRenderer {
         bind2D(5, volume.heightTexture());
         bind3D(6, volume.texture());
         bind3D(7, volume.coarseTexture());
-        bindRaw3D(11, volume.maskTextureA());
-        bindRaw3D(12, volume.maskTextureB());
-        s.set("maskTexA", 11);
-        s.set("maskTexB", 12);
+        bindRaw3D(11, volume.shapeIdTexture());
+        bindRaw3D(12, volume.shapes.texture());
+        s.set("shapeIdTex", 11);
+        s.set("shapeTex", 12);
         s.set("heightTex", 5);
         s.set("voxelTex", 6);
         s.set("coarseTex", 7);

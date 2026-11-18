@@ -23,12 +23,11 @@ void main() {
 
     vec3 hc; vec3 hn; float t;
     float r = traceRay(ro, dir, depthDist + 2.0, hc, hn, t);
-    // Only full blocks: a non-full block's 4x4x4 shape is coarser than its model, and trusting it
+    // Only full blocks: a non-full block's shape is only approximately its model, and trusting it
     // would put phantom surfaces next to thin things (fences, bars...) and on the ground under them.
     bool fullHit = false;
     if (r > 0.5 && r < 1.5) {
-        vec3 uvw = (hc + 0.5) / volumeSize;
-        fullHit = dot(texture3D(maskTexA, uvw) + texture3D(maskTexB, uvw), vec4(1.0)) <= 0.0;
+        fullHit = shapeIdAt(hc) < 0.5;
     }
     if (fullHit && abs(t - depthDist) < 0.3 + 0.02 * depthDist) {
         gl_FragColor = vec4(hn, t);

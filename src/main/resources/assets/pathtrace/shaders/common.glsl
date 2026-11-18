@@ -4,8 +4,8 @@
 uniform sampler3D voxelTex;   // RGB albedo, A = 128 solid | colour << 4 | light
 uniform sampler3D coarseTex;  // 1 texel per 4x4x4 cell, R > 0 if anything solid inside
 uniform sampler2D heightTex;  // world height per column
-uniform sampler3D maskTexA;   // 4x4x4 shape of non-full blocks, bits 0-31 (all zero = full block)
-uniform sampler3D maskTexB;   // bits 32-63
+uniform sampler3D shapeIdTex; // per block: number of its 16^3 shape (R + 256 G), 0 = full block
+uniform sampler3D shapeTex;   // ShapeAtlas: 32 x 32 bricks of 16x16x16 cells
 uniform float volumeSize;
 uniform float originY;
 uniform vec3 camPos;
@@ -100,33 +100,35 @@ bool coarseEmpty(vec3 cell) {
     return texture3D(coarseTex, (floor(cell * 0.25) + 0.5) / (volumeSize * 0.25)).r < 0.5;
 }
 
-// ---- sub-block shapes: a non-full block is a 4x4x4 grid of quarter-block cells
-float maskByte(vec4 a, vec4 b, float i) {
-    vec4 v = i < 3.5 ? a : b;
-    float j = mod(i, 4.0);
-    float c = j < 0.5 ? v.r : (j < 1.5 ? v.g : (j < 2.5 ? v.b : v.a));
-    return floor(c * 255.0 + 0.5);
+// ---- sub-block shapes: a non-full block is a 16x16x16 grid, one cell per texture pixel
+#define SHAPE_RES 16.0
+#define SHAPE_BRICKS 32.0
+
+float shapeIdAt(vec3 cell) {
+    vec4 v = texture3D(shapeIdTex, (cell + 0.5) / volumeSize);
+    return floor(v.r * 255.0 + 0.5) + 256.0 * floor(v.g * 255.0 + 0.5);
 }
 
-bool microSolid(vec4 a, vec4 b, vec3 m) {
-    float bit = m.x + 4.0 * m.y + 16.0 * m.z;
-    float byteV = maskByte(a, b, floor(bit / 8.0));
-    return mod(floor(byteV / exp2(mod(bit, 8.0))), 2.0) > 0.5;
+bool shapeSolid(float id, vec3 m) {
+    float b = id - 1.0;
+    vec3 t = vec3(vec2(mod(b, SHAPE_BRICKS), floor(b / SHAPE_BRICKS)) * SHAPE_RES + m.xy, m.z);
+    return texture3D(shapeTex, (t + 0.5) / vec3(SHAPE_BRICKS * SHAPE_RES, SHAPE_BRICKS * SHAPE_RES, SHAPE_RES)).r > 0.5;
 }
 
-// Walk the 4x4x4 cells of `cell`, which the ray enters at distance tEnter through face nEnter.
-// skipFirst: the ray starts inside this block (on its surface). The 4x4x4 shape is coarser than the
-// real model, so the start can lie inside it: ignore solid cells until the ray reaches an open one.
+// Walk the 16^3 cells of `cell`, which the ray enters at distance tEnter through face nEnter.
+// skipFirst: the ray starts inside this block (on its surface). Ignore solid cells until the ray
+// reaches an open one, so a surface doesn't shadow itself.
 bool traceMicro(vec3 ro, vec3 rd, vec3 invd, vec3 stp, vec3 cell, float tEnter, vec3 nEnter,
-                vec4 a, vec4 b, bool skipFirst, out float tHit, out vec3 nHit) {
-    vec3 p = (ro + rd * (tEnter + 1e-4) - cell) * 4.0;
-    vec3 m = clamp(floor(p), vec3(0.0), vec3(3.0));
-    vec3 tMax = abs(cell + (m + step(0.0, rd)) * 0.25 - ro) * invd;
+                float id, bool skipFirst, out float tHit, out vec3 nHit) {
+    float cs = 1.0 / SHAPE_RES;
+    vec3 p = (ro + rd * (tEnter + 1e-4) - cell) * SHAPE_RES;
+    vec3 m = clamp(floor(p), vec3(0.0), vec3(SHAPE_RES - 1.0));
+    vec3 tMax = abs(cell + (m + step(0.0, rd)) * cs - ro) * invd;
     float t = tEnter;
     vec3 n = nEnter;
     bool inSelf = skipFirst;
-    for (int i = 0; i < 12; i++) {
-        bool solid = microSolid(a, b, m);
+    for (int i = 0; i < 48; i++) {
+        bool solid = shapeSolid(id, m);
         if (inSelf && !solid) inSelf = false;
         if (!inSelf && solid) {
             tHit = t;
@@ -134,13 +136,13 @@ bool traceMicro(vec3 ro, vec3 rd, vec3 invd, vec3 stp, vec3 cell, float tEnter, 
             return true;
         }
         if (tMax.x < tMax.y && tMax.x < tMax.z) {
-            m.x += stp.x; t = tMax.x; tMax.x += 0.25 * invd.x; n = vec3(-stp.x, 0.0, 0.0);
+            m.x += stp.x; t = tMax.x; tMax.x += cs * invd.x; n = vec3(-stp.x, 0.0, 0.0);
         } else if (tMax.y < tMax.z) {
-            m.y += stp.y; t = tMax.y; tMax.y += 0.25 * invd.y; n = vec3(0.0, -stp.y, 0.0);
+            m.y += stp.y; t = tMax.y; tMax.y += cs * invd.y; n = vec3(0.0, -stp.y, 0.0);
         } else {
-            m.z += stp.z; t = tMax.z; tMax.z += 0.25 * invd.z; n = vec3(0.0, 0.0, -stp.z);
+            m.z += stp.z; t = tMax.z; tMax.z += cs * invd.z; n = vec3(0.0, 0.0, -stp.z);
         }
-        if (any(lessThan(m, vec3(0.0))) || any(greaterThan(m, vec3(3.0)))) return false;
+        if (any(lessThan(m, vec3(0.0))) || any(greaterThan(m, vec3(SHAPE_RES - 1.0)))) return false;
     }
     return false;
 }
@@ -163,11 +165,9 @@ float traceRay(vec3 ro, vec3 rd, float maxT, out vec3 hitCell, out vec3 hitNorma
     // But if it's a non-full block (fence, bars, slab...), the rest of its shape can still block the ray.
     vec4 sv = fetchVoxel(cell);
     if (isSolid(sv) && emission(sv) <= 0.0) {
-        vec3 suvw = (cell + 0.5) / volumeSize;
-        vec4 sa = texture3D(maskTexA, suvw);
-        vec4 sb = texture3D(maskTexB, suvw);
+        float sid = shapeIdAt(cell);
         float tm; vec3 nm;
-        if (dot(sa + sb, vec4(1.0)) > 0.0 && traceMicro(ro, rd, invd, stp, cell, 0.0, vec3(0.0), sa, sb, true, tm, nm)) {
+        if (sid > 0.5 && traceMicro(ro, rd, invd, stp, cell, 0.0, vec3(0.0), sid, true, tm, nm)) {
             if (tm > maxT) return 2.0;
             hitT = tm; hitNormal = nm;
             return 1.0;
@@ -211,13 +211,11 @@ float traceRay(vec3 ro, vec3 rd, float maxT, out vec3 hitCell, out vec3 hitNorma
         if (hitT > maxT) return 2.0;
         vec4 vox = fetchVoxel(cell);
         if (isSolid(vox)) {
-            vec3 uvw = (cell + 0.5) / volumeSize;
-            vec4 ma = texture3D(maskTexA, uvw);
-            vec4 mb = texture3D(maskTexB, uvw);
-            if (dot(ma + mb, vec4(1.0)) <= 0.0) { hitCell = cell; return 1.0; }   // full block
+            float id = shapeIdAt(cell);
+            if (id < 0.5) { hitCell = cell; return 1.0; }   // full block
             if (emission(vox) > 0.0) continue;   // small light sources (torches...) don't cast shadows
             float tm; vec3 nm;
-            if (traceMicro(ro, rd, invd, stp, cell, hitT, hitNormal, ma, mb, false, tm, nm)) {
+            if (traceMicro(ro, rd, invd, stp, cell, hitT, hitNormal, id, false, tm, nm)) {
                 if (tm > maxT) return 2.0;
                 hitCell = cell; hitT = tm; hitNormal = nm;
                 return 1.0;

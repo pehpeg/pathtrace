@@ -82,9 +82,10 @@ Run the same thing locally with `gradlew runClient -Pautoshot`.
 
 ## Limitations
 
-- Non-full blocks (slabs, stairs, fences, bars, torches, plants) cast shadows from a 4×4×4 approximation of
-  their shape; plants and other cut-out blocks cast lighter, dappled shadows. Glass and liquids let light
-  through, and mobs don't cast shadows yet.
+- Non-full blocks (slabs, stairs, fences, bars, torches, plants) cast shadows from their actual model at
+  texture-pixel resolution (16×16×16 per block), so light passes through the gaps in bars, fences, leaves
+  of plants etc. Glass and liquids let light through, small light sources (torches) don't cast shadows,
+  and mobs don't cast shadows yet. Up to 1024 distinct non-full block shapes are kept.
 - Beyond about 64 blocks, shadows come from a coarser grid (2-block cells, 4 above render distance 8), so they
   are blockier, and thin things (single blocks, fences) may not cast them.
 - Not compatible with OptiFine shaders.
