@@ -36,13 +36,13 @@ vec3 remainingLights(vec3 P, vec3 N, vec3 origin) {
     vec3 resid = g_resid;
     float scale = g_lightScale;
     vec3 extra = vec3(0.0);
-    if (shadowedLights < 4 && g_topW3 > 0.0) extra += g_topC3 * lightVisible(origin, lightTarget(origin, g_topP3.xyz, g_topB3, vec3(0.0)), g_topB3);
-    if (shadowedLights < 3 && g_topW2 > 0.0) extra += g_topC2 * lightVisible(origin, lightTarget(origin, g_topP2.xyz, g_topB2, vec3(0.0)), g_topB2);
-    if (shadowedLights < 2 && g_topW1 > 0.0) extra += g_topC1 * lightVisible(origin, lightTarget(origin, g_topP1.xyz, g_topB1, vec3(0.0)), g_topB1);
-    if (shadowedLights < 1 && g_topW0 > 0.0) extra += g_topC0 * lightVisible(origin, lightTarget(origin, g_topP0.xyz, g_topB0, vec3(0.0)), g_topB0);
+    if (shadowedLights < 4 && g_topW3 > 0.0) extra += g_topC3 * lightVisible(origin, lightTarget(origin, g_topP3, g_topB3, vec3(0.0)), g_topB3);
+    if (shadowedLights < 3 && g_topW2 > 0.0) extra += g_topC2 * lightVisible(origin, lightTarget(origin, g_topP2, g_topB2, vec3(0.0)), g_topB2);
+    if (shadowedLights < 2 && g_topW1 > 0.0) extra += g_topC1 * lightVisible(origin, lightTarget(origin, g_topP1, g_topB1, vec3(0.0)), g_topB1);
+    if (shadowedLights < 1 && g_topW0 > 0.0) extra += g_topC0 * lightVisible(origin, lightTarget(origin, g_topP0, g_topB0, vec3(0.0)), g_topB0);
     vec3 rem = vec3(0.0);
     if (g_remTotal > 1e-5) {
-        vec3 target = lightTarget(origin, g_remPick.xyz, g_remCell, (vec3(rand(), rand(), rand()) - 0.5) * 0.6);
+        vec3 target = lightTarget(origin, g_remPick, g_remCell, (vec3(rand(), rand(), rand()) - 0.5) * 0.6);
         rem = sum * lightVisible(origin, target, g_remCell);
     }
     return (rem + extra + resid) * scale;

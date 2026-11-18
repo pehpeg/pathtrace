@@ -31,7 +31,7 @@ vec3 sunVisibilityHard(vec3 p) {
 // One shadow ray per strong light, aimed at the part of a glowing block that faces this point.
 vec3 slot(float w, vec4 lp, vec3 c, vec3 blk, vec3 origin) {
     if (w <= 0.0) return vec3(0.0);
-    return c * lightVisible(origin, lightTarget(origin, lp.xyz, blk, vec3(0.0)), blk);
+    return c * lightVisible(origin, lightTarget(origin, lp, blk, vec3(0.0)), blk);
 }
 
 void main() {
@@ -87,8 +87,8 @@ void main() {
         float blockedNow = (r > 0.5 && r < 1.5 && t < 0.3) ? 1.0 : 0.0;
         float partial = (ownInGrid && isSolid(fetchVoxel(own)) && shapeIdAt(own) > 0.5) ? 1.0 : 0.0;
         float n = 0.0, v = 0.0;
-        if (g_topW0 > 0.0) { n += 1.0; v += luminance(lightVisible(origin, lightTarget(origin, g_topP0.xyz, g_topB0, vec3(0.0)), g_topB0)); }
-        if (g_topW1 > 0.0) { n += 1.0; v += luminance(lightVisible(origin, lightTarget(origin, g_topP1.xyz, g_topB1, vec3(0.0)), g_topB1)); }
+        if (g_topW0 > 0.0) { n += 1.0; v += luminance(lightVisible(origin, lightTarget(origin, g_topP0, g_topB0, vec3(0.0)), g_topB0)); }
+        if (g_topW1 > 0.0) { n += 1.0; v += luminance(lightVisible(origin, lightTarget(origin, g_topP1, g_topB1, vec3(0.0)), g_topB1)); }
         gl_FragColor = vec4(blockedNow, partial * 0.6, n > 0.0 ? v / n : 0.0, glow);
         return;
     }

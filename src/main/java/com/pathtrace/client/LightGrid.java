@@ -41,7 +41,7 @@ final class LightGrid {
     private int framesSinceBuild;
 
     private final float[] lx = new float[MAX_LIGHTS], ly = new float[MAX_LIGHTS], lz = new float[MAX_LIGHTS];
-    private final int[] llight = new int[MAX_LIGHTS], lcolor = new int[MAX_LIGHTS], loffset = new int[MAX_LIGHTS];
+    private final int[] llight = new int[MAX_LIGHTS], lcolor = new int[MAX_LIGHTS], loffset = new int[MAX_LIGHTS], lfaces = new int[MAX_LIGHTS];
     /** How far a light is pushed out of a full glowing block, towards its open faces. Must match common.glsl. */
     static final float PUSH = 0.8f;
     /** Light falloff 1 / (1 + FALLOFF d^2); must match common.glsl. */
@@ -134,7 +134,7 @@ final class LightGrid {
         final int[] overflow = {0};
         int pad = 16;
         emitters.forEach(ox - pad, oy - pad, oz - pad, ox + gx * CELL + pad, oy + gy * CELL + pad, oz + gz * CELL + pad,
-                (x, y, z, light, color, offset) -> {
+                (x, y, z, light, color, offset, faces) -> {
                     float px = x + 0.5f, py = y + 0.5f, pz = z + 0.5f;
                     if (offset != 13) {
                         float dx = offset % 3 - 1, dy = (offset / 3) % 3 - 1, dz = offset / 9 - 1;
@@ -156,7 +156,7 @@ final class LightGrid {
                         lightCount++;
                     }
                     lx[i] = px - ox; ly[i] = py - oy; lz[i] = pz - oz;
-                    llight[i] = light; lcolor[i] = color; loffset[i] = offset; ld2[i] = d2;
+                    llight[i] = light; lcolor[i] = color; loffset[i] = offset; lfaces[i] = faces; ld2[i] = d2;
                 });
 
         int cells = gx * gy * gz;
@@ -240,7 +240,7 @@ final class LightGrid {
                 float[] rgb = LightColors.RGB[Math.min(lcolor[i], LightColors.RGB.length - 1)];
                 float k = llight[i] / 15f * strength;
                 lightBuf.put(lx[i]).put(ly[i]).put(lz[i]).put(lreach[i]);
-                lightBuf.put(rgb[0] * k).put(rgb[1] * k).put(rgb[2] * k).put((float) (loffset[i] + 32 * llight[i]));
+                lightBuf.put(rgb[0] * k).put(rgb[1] * k).put(rgb[2] * k).put((float) (loffset[i] + 32 * llight[i] + 512 * lfaces[i]));
             } else {
                 for (int j = 0; j < 8; j++) lightBuf.put(0f);
             }

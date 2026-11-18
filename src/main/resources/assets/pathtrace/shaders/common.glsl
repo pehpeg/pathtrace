@@ -410,9 +410,11 @@ float lightTerm(vec4 lp, vec3 lc, float range, vec3 p, vec3 n, out vec3 contrib)
     return luminance(contrib);
 }
 
-// light texel 2, w = offset code + 32 * light level (0 for dynamic lights: their w is their range)
+// light texel 2, w = offset code + 32 * light level + 512 * open-face mask (bit i = EnumFacing i open)
+// (dynamic lights: 13, and their lp.w is their range)
 float lightCode(float w) { return mod(w, 32.0); }
-float lightRange(vec4 lp, float w) { float lv = floor(w / 32.0); return lv > 0.0 ? lv + 0.5 : lp.w; }
+float lightRange(vec4 lp, float w) { float lv = mod(floor(w / 32.0), 16.0); return lv > 0.0 ? lv + 0.5 : lp.w; }
+float lightFaces(float w) { return floor(w / 512.0); }
 
 // The block a light belongs to: lights of full glowing blocks are pushed out towards their open faces.
 vec3 lightBlock(vec3 lp, float code) {
@@ -434,6 +436,7 @@ void visitLight(vec4 lp, vec4 lcw, vec3 p, vec3 n) {
     }
     vec3 c;
     float w = lightTerm(lp, lc, range, p, n, c);
+    lp.w = lightFaces(lcw.w);   // from here on lp.w carries the open-face mask (for lightTarget)
     if (w <= 0.0) return;
     g_sum += c;
     g_total += w;
@@ -514,33 +517,41 @@ void visitLights(vec3 p, vec3 n) {
 }
 
 // Many lights close together: vanilla takes the brightest, a plain sum blows out. The sum is
-// kept as is up to about two nearby lights' worth, then rolls off smoothly (towards 2x that).
-const float LIGHT_KNEE = 3.0;
+// kept as is up to a bit more than one close light's worth, then rolls off smoothly (towards 1.6x that).
+const float LIGHT_KNEE = 2.5;
 float lightCrowding(float total) {
     if (total <= LIGHT_KNEE) return 1.0;
     float over = total - LIGHT_KNEE;
-    return (LIGHT_KNEE + over / (1.0 + over / LIGHT_KNEE)) / total;
+    return (LIGHT_KNEE + over / (1.0 + over / (0.6 * LIGHT_KNEE))) / total;
 }
 float g_lightScale = 1.0;
 
-// Where to aim a shadow ray at a light. A glowing full block is a glowing cube, not a point: aim at
-// the point of the block closest to p (moved by `j`, in blocks, for soft edges). From there the
-// ray only crosses what really is between p and the glowing faces it can see. A light sitting at
-// the centre of a block in a wall would otherwise be shadowed by the wall itself at grazing angles.
-vec3 lightTarget(vec3 p, vec3 lp, vec3 blk, vec3 j) {
-    if (!insideVolume(blk)) return lp;
-    if (!isSolid(fetchVoxel(blk)) || shapeIdAt(blk) > 0.5) return lp;   // torches etc.: a point
-    vec3 off = lp - (blk + 0.5);
-    if (dot(off, off) > 0.01) {
-        // pushed out of one side (the only open side): a square just in front of that face
-        vec3 o = normalize(off);
-        vec3 d = p - lp + j;
-        d -= o * dot(d, o);
-        return lp + clamp(d, vec3(-0.45), vec3(0.45));
+// Where to aim a shadow ray at a light (lp.w = its open-face mask, see lightFaces). A glowing full
+// block shines from its open faces, not from a point: aim at the closest point of an open face that
+// looks towards p (moved by `j` along it, for soft edges), just outside it. Then the ray only crosses
+// what really is between p and that face; aiming at the block's middle, the wall around a glowstone
+// set into it would shadow it.
+vec3 lightTarget(vec3 p, vec4 lp, vec3 blk, vec3 j) {
+    float mask = lp.w;
+    if (mask < 0.5) return lp.xyz;                     // torches, dynamic lights: a point
+    vec3 lo = blk + 0.04, hi = blk + 0.96;
+    vec3 q = clamp(p + j, lo, hi);
+    vec3 best = lp.xyz;
+    float bestD = 1.0e9;
+    for (int i = 0; i < 6; i++) {
+        float bit = mod(floor(mask / pow(2.0, float(i))), 2.0);
+        if (bit < 0.5) continue;
+        // EnumFacing order: down, up, north, south, west, east
+        vec3 n = i == 0 ? vec3(0.0, -1.0, 0.0) : i == 1 ? vec3(0.0, 1.0, 0.0) : i == 2 ? vec3(0.0, 0.0, -1.0)
+               : i == 3 ? vec3(0.0, 0.0, 1.0) : i == 4 ? vec3(-1.0, 0.0, 0.0) : vec3(1.0, 0.0, 0.0);
+        vec3 fc = blk + 0.5 + n * 0.5;
+        if (dot(p - fc, n) <= 0.0) continue;           // p is behind this face
+        vec3 a = abs(n);
+        vec3 c = mix(q, fc + n * 0.03, a);              // on the face plane (just outside), closest point
+        float d = dot(c - p, c - p);
+        if (d < bestD) { bestD = d; best = c; }
     }
-    // open on opposite sides (e.g. in a 1-thick wall): the part of the block closest to p
-    vec3 lo = blk + 0.05, hi = blk + 0.95;
-    return clamp(clamp(p, lo, hi) + j, lo, hi);
+    return best;
 }
 
 // Find the strongest lights at p (the ones direct.fsh shadows exactly), keeping at most `count`.
@@ -573,7 +584,7 @@ vec3 pointLights(vec3 p, vec3 n, bool shadows) {
     visitLights(p, n);
     float k = lightCrowding(g_total);
     if (g_total <= 1e-5 || !shadows) return g_sum * k;
-    vec3 target = lightTarget(p, g_pick.xyz, g_pickCell, (vec3(rand(), rand(), rand()) - 0.5) * 0.6);
+    vec3 target = lightTarget(p, g_pick, g_pickCell, (vec3(rand(), rand(), rand()) - 0.5) * 0.6);
     return g_sum * k * lightVisible(p, target, g_pickCell);
 }
 
