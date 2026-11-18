@@ -37,12 +37,14 @@ The jar is written to `build/libs/pathtrace-<version>.jar`. Ignore the `-dev` an
 | `/pathtrace set <setting> <value>` | Change any setting below (saved to the config); tab completes |
 | `/pathtrace get <setting>` | Show a setting's value |
 | `/pathtrace reload` | Reload shaders |
+| `/pathtrace preset fast\|balanced\|quality\|ultra` | Set the performance-related settings in one go (`balanced` is the default) |
+| `/pathtrace perf` | Where the frame time goes: GPU milliseconds per pass, CPU milliseconds per step |
 
 The same on/off and reload actions can be bound to keys under Controls → PathTrace (unbound by default).
 
 ## Settings
 
-Mods → PathTrace → Config, or `config/pathtrace.cfg`.
+The **PathTrace...** button on the pause menu, Mods → PathTrace → Config, or `config/pathtrace.cfg`.
 
 | Setting | Default | Notes |
 |---------|---------|-------|
@@ -50,7 +52,9 @@ Mods → PathTrace → Config, or `config/pathtrace.cfg`.
 | `bounces` | 1 | 0 = direct light only, 2–3 = brighter interiors, slower |
 | `maxAccumulation` | 32 | Frames averaged for bounce/sky light |
 | `pixelShadows` | true | Shadows computed once per block-texture pixel: crisp, pixel-art edges with no flicker |
-| `shadowedLights` | 4 | Strongest nearby lights that get an exact shadow per pixel |
+| `directScale` | 0.5 | Resolution of the direct light and shadows, upscaled edge-aware. 1.0 = sharpest, 0.5 ≈ 4× cheaper |
+| `shadowedLights` | 3 | Strongest nearby lights that get an exact shadow per pixel (the rest are sampled and denoised) |
+| `lightSaturation` | 1.6 | How coloured block light is (1 = subtle tints) |
 | `denoise` | true | Edge-aware wavelet denoiser |
 | `autoExposure` | true | Eye adaptation |
 | `exposure`, `saturation` | 1.0, 1.0 | Grading |
@@ -60,7 +64,7 @@ Mods → PathTrace → Config, or `config/pathtrace.cfg`.
 | `litHand` | true | Path traced lighting on the first-person hand |
 | `bloom`, `bloomStrength` | true, 1.6 | Soft glow around light sources (flames, glowstone, lava…) |
 | `lodShadows` | true | Shadows beyond the detailed 128-block grid, from a 1-block grid out to the render distance |
-| `debugView` | 0 | 1 = direct light only, 2 = bounce light only, 3 = surface normals |
+| `debugView` | 0 | 1 = direct light only, 2 = bounce light only, 3 = surface normals, 4 = ray diagnostics, 5 = light-list fill |
 
 ## How it works
 
