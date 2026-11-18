@@ -38,7 +38,8 @@ vec3 remainingLights(vec3 P, vec3 N, vec3 origin) {
     visitLights(P, N);
     g_exclude = false;
     if (g_total <= 1e-5) return vec3(0.0);
-    return g_sum * scale * lightVisible(origin, g_pick.xyz, g_pickCell);
+    vec3 target = lightOnFace(g_pick.xyz, g_pickCell, vec2(rand(), rand()) * 2.0 - 1.0);
+    return g_sum * scale * lightVisible(origin, target, g_pickCell);
 }
 
 void main() {

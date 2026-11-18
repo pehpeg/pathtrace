@@ -471,6 +471,16 @@ float lightCrowding(float total) {
 }
 float g_lightScale = 1.0;
 
+// Lights of full glowing blocks sit just outside the face they shine from. Treat them as a small
+// square on that face: a point on it at (u, v) in [-1, 1]. Other lights stay points.
+vec3 lightOnFace(vec3 lp, vec3 blk, vec2 uv) {
+    if (all(greaterThanEqual(lp, blk)) && all(lessThan(lp, blk + 1.0))) return lp;
+    vec3 o = normalize(lp - (blk + 0.5));
+    vec3 t = normalize(abs(o.y) < 0.9 ? cross(o, vec3(0.0, 1.0, 0.0)) : cross(o, vec3(1.0, 0.0, 0.0)));
+    vec3 b = cross(o, t);
+    return lp + (t * uv.x + b * uv.y) * 0.4;
+}
+
 // Find the strongest lights at p (the ones direct.fsh shadows exactly), keeping at most `count`.
 void findTopLights(vec3 p, vec3 n, vec3 ownCell, int count) {
     g_wantTop = true;
@@ -501,7 +511,8 @@ vec3 pointLights(vec3 p, vec3 n, bool shadows) {
     visitLights(p, n);
     float k = lightCrowding(g_total);
     if (g_total <= 1e-5 || !shadows) return g_sum * k;
-    return g_sum * k * lightVisible(p, g_pick.xyz, g_pickCell);
+    vec3 target = lightOnFace(g_pick.xyz, g_pickCell, vec2(rand(), rand()) * 2.0 - 1.0);
+    return g_sum * k * lightVisible(p, target, g_pickCell);
 }
 
 // 64 fixed directions on a sphere (Fibonacci), shared by the eye probe and the hand pass.
