@@ -115,15 +115,16 @@ bool microSolid(vec4 a, vec4 b, vec3 m) {
 }
 
 // Walk the 4x4x4 cells of `cell`, which the ray enters at distance tEnter through face nEnter.
+// skipFirst: the ray starts inside this block, so ignore the small cell it starts in (its own surface).
 bool traceMicro(vec3 ro, vec3 rd, vec3 invd, vec3 stp, vec3 cell, float tEnter, vec3 nEnter,
-                vec4 a, vec4 b, out float tHit, out vec3 nHit) {
+                vec4 a, vec4 b, bool skipFirst, out float tHit, out vec3 nHit) {
     vec3 p = (ro + rd * (tEnter + 1e-4) - cell) * 4.0;
     vec3 m = clamp(floor(p), vec3(0.0), vec3(3.0));
     vec3 tMax = abs(cell + (m + step(0.0, rd)) * 0.25 - ro) * invd;
     float t = tEnter;
     vec3 n = nEnter;
     for (int i = 0; i < 12; i++) {
-        if (microSolid(a, b, m)) {
+        if (!(skipFirst && i == 0) && microSolid(a, b, m)) {
             tHit = t;
             nHit = n;
             return true;
@@ -153,6 +154,21 @@ float traceRay(vec3 ro, vec3 rd, float maxT, out vec3 hitCell, out vec3 hitNorma
     hitNormal = vec3(0.0);
     hitT = 0.0;
     if (!insideVolume(cell)) return 0.0;
+
+    // The starting block is normally skipped (it's the air in front of the surface we start on).
+    // But if it's a non-full block (fence, bars, slab...), the rest of its shape can still block the ray.
+    vec4 sv = fetchVoxel(cell);
+    if (isSolid(sv) && emission(sv) <= 0.0) {
+        vec3 suvw = (cell + 0.5) / volumeSize;
+        vec4 sa = texture3D(maskTexA, suvw);
+        vec4 sb = texture3D(maskTexB, suvw);
+        float tm; vec3 nm;
+        if (dot(sa + sb, vec4(1.0)) > 0.0 && traceMicro(ro, rd, invd, stp, cell, 0.0, vec3(0.0), sa, sb, true, tm, nm)) {
+            if (tm > maxT) return 2.0;
+            hitT = tm; hitNormal = nm;
+            return 1.0;
+        }
+    }
 
     for (int i = 0; i < MAX_STEPS; i++) {
         if (coarseEmpty(cell)) {
@@ -197,7 +213,7 @@ float traceRay(vec3 ro, vec3 rd, float maxT, out vec3 hitCell, out vec3 hitNorma
             if (dot(ma + mb, vec4(1.0)) <= 0.0) { hitCell = cell; return 1.0; }   // full block
             if (emission(vox) > 0.0) continue;   // small light sources (torches...) don't cast shadows
             float tm; vec3 nm;
-            if (traceMicro(ro, rd, invd, stp, cell, hitT, hitNormal, ma, mb, tm, nm)) {
+            if (traceMicro(ro, rd, invd, stp, cell, hitT, hitNormal, ma, mb, false, tm, nm)) {
                 if (tm > maxT) return 2.0;
                 hitCell = cell; hitT = tm; hitNormal = nm;
                 return 1.0;

@@ -63,6 +63,8 @@ final class AutoShot {
     private static final double[] PARTIAL = {20.5, 2.0, 19.5}, PARTIAL_T = {20.0, 0.0, 10.0};
     // glowstone set flush into the floor and a lava pool
     private static final double[] FLUSH = {27.5, 2.0, 23.5}, FLUSH_T = {28.0, -1.0, 15.0};
+    // close-up of the fence / iron bars bases (shadows inside non-full blocks' own spaces)
+    private static final double[] CLOSE = {20.0, 0.5, 15.0}, CLOSE_T = {20.0, 0.0, 10.0};
     private static final long DAY = 2000L, NIGHT = 18000L;
 
     private static final Shot[] SHOTS = {
@@ -98,6 +100,9 @@ final class AutoShot {
             new Shot("30_night_flush_lava_pathtrace", NIGHT, false, true, false, 0, FLUSH, FLUSH_T),
             new Shot("31_night_flush_lava_no_bloom", NIGHT, false, true, false, 0, FLUSH, FLUSH_T).noBloom(),
             new Shot("32_night_flush_lava_vanilla", NIGHT, false, false, false, 0, FLUSH, FLUSH_T),
+            new Shot("33_day_partial_closeup", DAY, false, true, false, 0, CLOSE, CLOSE_T),
+            new Shot("34_night_partial_closeup", NIGHT, false, true, false, 0, CLOSE, CLOSE_T),
+            new Shot("35_night_partial_closeup_vanilla", NIGHT, false, false, false, 0, CLOSE, CLOSE_T),
     };
 
     private int index = -1;          // -1 = not in a world yet
