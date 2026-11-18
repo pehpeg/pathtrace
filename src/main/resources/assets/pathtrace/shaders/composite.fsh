@@ -57,6 +57,12 @@ vec3 aces(vec3 x) {
 void main() {
     vec3 scene = texture2D(sceneTex, uv).rgb;
     float d = texture2D(depthTex, uv).r;
+    if (debugView == 6) {   // red: lit as a surface, green: depth but passed through (clouds), blue: sky
+        float gw = texture2D(gbufferTex, uv).w;
+        gl_FragColor = vec4(d < 1.0 && gw > 0.0 ? 1.0 : 0.0, d < 1.0 && gw <= 0.0 ? 1.0 : 0.0, d >= 1.0 ? 1.0 : 0.0, 1.0);
+        return;
+    }
+    if (debugView == 7) { gl_FragColor = vec4(scene, 1.0); return; }
     if (d >= 1.0) {
         vec3 b = texture2D(bloomTex, uv).rgb * bloomStrength;
         float eb = exposure * (autoExposure > 0.5 ? texture2D(exposureTex, vec2(0.5)).r : 1.0);

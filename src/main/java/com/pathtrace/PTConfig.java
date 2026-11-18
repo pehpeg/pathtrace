@@ -82,7 +82,7 @@ public class PTConfig {
     public static boolean lodShadows = true;
 
     @Config.Comment("Debug view: 0 = normal, 1 = direct light only, 2 = bounce/sky light only, 3 = surface normals, 4 = ray diagnostics, 5 = light-list fill.")
-    @Config.RangeInt(min = 0, max = 5)
+    @Config.RangeInt(min = 0, max = 7)
     public static int debugView = 0;
 
     @Config.Comment("Voxel slices re-scanned every 8 frames as a background safety net (block and chunk changes are picked up instantly anyway). 0 = off.")

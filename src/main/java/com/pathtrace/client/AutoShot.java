@@ -87,11 +87,12 @@ final class AutoShot {
     private static final double[] HALL = {63.0, 0.0, 12.0}, HALL_T = {72.0, 0.5, 22.0};
     private static final double[] PIT = {71.0, 0.0, 18.5}, PIT_T = {71.0, -0.8, 21.5};
     private static final double[] SIGNS = {68.0, 0.0, 19.0}, SIGNS_T = {68.0, 2.5, 23.0};
+    private static final double[] CLOUDS = {0.0, 0.0, 0.0}, CLOUDS_T = {40.0, 30.0, 40.0};
     private static final double[] CORRIDOR = {85.5, 0.0, 12.5}, CORRIDOR_T = {110.0, 1.0, 12.5};
 
     /** While iterating on one problem: only take the shots from FOCUS_FROM on. */
-    private static final boolean FOCUS = false;
-    private static final String FOCUS_FROM = "52";
+    private static final boolean FOCUS = true;
+    private static final String FOCUS_FROM = "69";
 
     private static final Shot[] SHOTS = filter(new Shot[] {
             new Shot("01_day_pathtrace", DAY, false, true, false, 0, OUTSIDE, OUTSIDE_T),
@@ -162,6 +163,10 @@ final class AutoShot {
             new Shot("66_corridor_vanilla", NIGHT, true, false, false, 0, CORRIDOR, CORRIDOR_T),
             new Shot("67_corridor_debug_direct", NIGHT, true, true, false, 1, CORRIDOR, CORRIDOR_T),
             new Shot("68_corridor_debug_lightcount", NIGHT, true, true, false, 5, CORRIDOR, CORRIDOR_T),
+            new Shot("69_day_clouds_pathtrace", DAY, false, true, false, 0, CLOUDS, CLOUDS_T),
+            new Shot("70_day_clouds_vanilla", DAY, false, false, false, 0, CLOUDS, CLOUDS_T),
+            new Shot("71_day_clouds_debug_mask", DAY, false, true, false, 6, CLOUDS, CLOUDS_T),
+            new Shot("72_day_clouds_debug_scene", DAY, false, true, false, 7, CLOUDS, CLOUDS_T),
     });
 
     private static Shot[] filter(Shot[] all) {
