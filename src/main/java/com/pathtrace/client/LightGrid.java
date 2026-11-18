@@ -14,18 +14,18 @@ import java.util.Arrays;
 
 /**
  * Clustered block lights. The area around the camera (out to the render distance) is split into
- * 8x8x8-block cells; each cell lists the (up to) 16 lights that matter most inside it. The shaders
+ * 8x8x8-block cells; each cell lists the (up to) 32 lights that matter most inside it. The shaders
  * look up the cell of a pixel and only loop over those lights, so the number of lights in the
  * world barely matters and distant lights work the same as near ones.
  * <ul>
  *   <li>light texture: 2 texels per light: (position relative to grid origin, radius),
  *       (rgb intensity, offset code: which way the light was pushed out of its block)</li>
- *   <li>cell texture: 4 texels per cell holding 16 light indices (-1 = none)</li>
+ *   <li>cell texture: 8 texels per cell holding 32 light indices (-1 = none)</li>
  * </ul>
  */
 final class LightGrid {
     static final int CELL = 8;
-    static final int K = 16;
+    static final int K = 32;
     static final int MAX_LIGHTS = 4096;
     private static final int LIGHT_TEX_W = 256;      // 128 lights per row
     private static final int LIGHT_TEX_H = MAX_LIGHTS / 128;
@@ -47,7 +47,7 @@ final class LightGrid {
     private final double[] ld2 = new double[MAX_LIGHTS];
     /** Reach of each light: its full range, shrunk where lights are so crowded a cell's list would overflow. */
     private final float[] lreach = new float[MAX_LIGHTS];
-    private static final float MIN_REACH = 4.5f;
+    private static final float MIN_REACH = 9.5f;
     private int[] cellCount = new int[0];
     private int[] cellIdx = new int[0];
     private float[] cellScore = new float[0];
@@ -96,7 +96,7 @@ final class LightGrid {
         int cells = gx * gy * gz;
         cellIdx = new int[cells * K];
         cellScore = new float[cells * K];
-        cellTexH = (cells * 4 + CELL_TEX_W - 1) / CELL_TEX_W;
+        cellTexH = (cells * (K / 4) + CELL_TEX_W - 1) / CELL_TEX_W;
         cellBuf = BufferUtils.createFloatBuffer(CELL_TEX_W * cellTexH * 4);
         if (lightTex == -1) lightTex = makeTex(LIGHT_TEX_W, LIGHT_TEX_H);
         if (cellTex != -1) GlStateManager.deleteTexture(cellTex);

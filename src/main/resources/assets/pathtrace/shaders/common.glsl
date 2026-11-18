@@ -371,6 +371,20 @@ bool g_wantTop = false;
 // with g_exclude, lights at the g_ex* positions are skipped (they already got an exact shadow ray)
 bool g_exclude = false;
 vec3 g_ex0, g_ex1, g_ex2, g_ex3;
+// With g_wantRem (and g_wantTop), every light that ends up NOT among the top 4 is also summed
+// into g_rem* with one of them picked in proportion to its contribution. A light is fed in when it
+// fails to make the top 4, or later when it is pushed out of it, so the pick is exact in one pass.
+bool g_wantRem = false;
+vec3 g_remSum;
+float g_remTotal;
+vec4 g_remPick;
+vec3 g_remCell;
+void feedRem(float w, vec4 lp, vec3 c, vec3 blk) {
+    if (w <= 0.0) return;
+    g_remSum += c;
+    g_remTotal += w;
+    if (rand() * g_remTotal < w) { g_remPick = lp; g_remCell = blk; }
+}
 
 // lp.w = how far the light reaches here: its full range, or less where lights are crowded
 // (the light grid shrinks it so no list overflows). `range` = its full range.
@@ -422,6 +436,10 @@ void visitLight(vec4 lp, vec4 lcw, vec3 p, vec3 n) {
     g_total += w;
     if (rand() * g_total < w) { g_pick = lp; g_pickCell = blk; }
     if (!g_wantTop) return;
+    if (g_wantRem) {
+        if (w > g_topW3) feedRem(g_topW3, g_topP3, g_topC3, g_topB3);   // slot 3 is about to be pushed out
+        else feedRem(w, lp, c, blk);
+    }
     if (w > g_topW0) {
         g_topW3 = g_topW2; g_topP3 = g_topP2; g_topC3 = g_topC2; g_topB3 = g_topB2;
         g_topW2 = g_topW1; g_topP2 = g_topP1; g_topC2 = g_topC1; g_topB2 = g_topB1;
@@ -453,6 +471,7 @@ bool visitIndex(float idx, vec3 p, vec3 n) {
 
 void visitLights(vec3 p, vec3 n) {
     g_visited = 0.0;
+    g_remSum = vec3(0.0); g_remTotal = 0.0; g_remPick = vec4(0.0); g_remCell = vec3(-1.0e9);
     g_sum = vec3(0.0); g_total = 0.0; g_pick = vec4(0.0); g_pickCell = vec3(-1.0e9); g_glow = vec3(0.0);
     g_topB0 = vec3(-1.0e9); g_topB1 = vec3(-1.0e9); g_topB2 = vec3(-1.0e9); g_topB3 = vec3(-1.0e9);
     g_topW0 = 0.0; g_topW1 = 0.0; g_topW2 = 0.0; g_topW3 = 0.0;
@@ -465,8 +484,8 @@ void visitLights(vec3 p, vec3 n) {
     vec3 c = floor((p - gridOrigin) / GRID_CELL);
     if (any(lessThan(c, vec3(0.0))) || any(greaterThanEqual(c, gridCells))) return;
     float cell = (c.z * gridCells.y + c.y) * gridCells.x + c.x;
-    for (int j = 0; j < 4; j++) {
-        float t = cell * 4.0 + float(j);
+    for (int j = 0; j < 8; j++) {   // LightGrid.K / 4 texels per cell
+        float t = cell * 8.0 + float(j);
         vec4 ids = texture2D(cellTex, (vec2(mod(t, cellTexSize.x), floor(t / cellTexSize.x)) + 0.5) / cellTexSize);
         if (!visitIndex(ids.x, p, n)) return;
         if (!visitIndex(ids.y, p, n)) return;

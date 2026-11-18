@@ -94,8 +94,8 @@ void main() {
     }
     if (debugView == 5) {
         // lights the light-grid cell offers here (red = list full, so some lights are cut off)
-        float full = g_visited >= 16.0 ? 1.0 : 0.0;
-        gl_FragColor = vec4(full, g_visited / 16.0 * (1.0 - full), g_lightScale < 0.999 ? 0.5 : 0.0, glow);
+        float full = g_visited >= 32.0 ? 1.0 : 0.0;
+        gl_FragColor = vec4(full, g_visited / 32.0 * (1.0 - full), g_lightScale < 0.999 ? 0.5 : 0.0, glow);
         return;
     }
     gl_FragColor = vec4(min(sane(direct), vec3(32.0)), glow);

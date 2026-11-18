@@ -28,18 +28,23 @@ uniform int shadowedLights;
 // stands in for all of them. Noisy per frame, but it is accumulated and denoised.
 vec3 remainingLights(vec3 P, vec3 N, vec3 origin) {
     vec3 own = floor(P - N * 0.25);
-    findTopLights(P, N, insideVolume(own) ? vec3(-1.0e9) : own, shadowedLights);
+    g_wantRem = true;
+    findTopLights(P, N, insideVolume(own) ? vec3(-1.0e9) : own, 4);
+    g_wantRem = false;
+    // lights beyond shadowedLights are top-4 members direct.fsh doesn't shadow: they're ours too
+    vec3 sum = g_remSum;
     float scale = g_lightScale;
-    g_ex0 = g_topW0 > 0.0 ? g_topP0.xyz : vec3(-1.0e9);
-    g_ex1 = g_topW1 > 0.0 ? g_topP1.xyz : vec3(-1.0e9);
-    g_ex2 = g_topW2 > 0.0 ? g_topP2.xyz : vec3(-1.0e9);
-    g_ex3 = g_topW3 > 0.0 ? g_topP3.xyz : vec3(-1.0e9);
-    g_exclude = true;
-    visitLights(P, N);
-    g_exclude = false;
-    if (g_total <= 1e-5) return vec3(0.0);
-    vec3 target = lightTarget(origin, g_pick.xyz, g_pickCell, (vec3(rand(), rand(), rand()) - 0.5) * 0.6);
-    return g_sum * scale * lightVisible(origin, target, g_pickCell);
+    vec3 extra = vec3(0.0);
+    if (shadowedLights < 4 && g_topW3 > 0.0) extra += g_topC3 * lightVisible(origin, lightTarget(origin, g_topP3.xyz, g_topB3, vec3(0.0)), g_topB3);
+    if (shadowedLights < 3 && g_topW2 > 0.0) extra += g_topC2 * lightVisible(origin, lightTarget(origin, g_topP2.xyz, g_topB2, vec3(0.0)), g_topB2);
+    if (shadowedLights < 2 && g_topW1 > 0.0) extra += g_topC1 * lightVisible(origin, lightTarget(origin, g_topP1.xyz, g_topB1, vec3(0.0)), g_topB1);
+    if (shadowedLights < 1 && g_topW0 > 0.0) extra += g_topC0 * lightVisible(origin, lightTarget(origin, g_topP0.xyz, g_topB0, vec3(0.0)), g_topB0);
+    vec3 rem = vec3(0.0);
+    if (g_remTotal > 1e-5) {
+        vec3 target = lightTarget(origin, g_remPick.xyz, g_remCell, (vec3(rand(), rand(), rand()) - 0.5) * 0.6);
+        rem = sum * lightVisible(origin, target, g_remCell);
+    }
+    return (rem + extra) * scale;
 }
 
 void main() {
