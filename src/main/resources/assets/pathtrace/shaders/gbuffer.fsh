@@ -8,6 +8,7 @@
 #include "geometry.glsl"
 
 varying vec2 uv;
+uniform float cloudY;   // volume space, -1e9 when clouds are off
 
 void main() {
     float d = texture2D(depthTex, uv).r;
@@ -32,6 +33,15 @@ void main() {
     if (fullHit && abs(t - depthDist) < 0.3 + 0.02 * depthDist) {
         gl_FragColor = vec4(hn, t);
     } else {
+        // clouds aren't in the voxel grid and must not be lit as terrain (they'd turn black): w = 0
+        vec3 P = ro + dir * depthDist;
+        if (P.y > cloudY - 0.3 && P.y < cloudY + 4.3) {
+            vec3 cc = floor(P);
+            if (!insideVolume(cc) || !isSolid(fetchVoxel(cc))) {
+                gl_FragColor = vec4(0.0);
+                return;
+            }
+        }
         gl_FragColor = vec4(surfaceNormal(uv, rel, dir), depthDist);
     }
 }

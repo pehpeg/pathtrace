@@ -56,6 +56,43 @@ public final class ClientHandler {
         enabled = on;
     }
 
+    static String perfReport() {
+        return RENDERER.perf.report();
+    }
+
+    static void perfReset() {
+        RENDERER.perf.reset();
+    }
+
+    // ---- "PathTrace..." button on the pause menu, next to other mods' corner buttons
+    private static final int MENU_BUTTON_ID = 0x50540;
+
+    @SubscribeEvent
+    public void onInitGui(net.minecraftforge.client.event.GuiScreenEvent.InitGuiEvent.Post event) {
+        if (!(event.getGui() instanceof net.minecraft.client.gui.GuiIngameMenu)) return;
+        java.util.List<net.minecraft.client.gui.GuiButton> buttons = event.getButtonList();
+        int w = 100, h = 20, x = 5, y = 5;
+        // first free slot going down the left edge (other mods put buttons in the corners too)
+        for (int tries = 0; tries < 8; tries++) {
+            boolean free = true;
+            for (net.minecraft.client.gui.GuiButton b : buttons) {
+                if (b.x < x + w && b.x + b.getButtonWidth() > x && b.y < y + h && b.y + 20 > y) { free = false; break; }
+            }
+            if (free) break;
+            y += h + 4;
+        }
+        buttons.add(new net.minecraft.client.gui.GuiButton(MENU_BUTTON_ID, x, y, w, h, "PathTrace..."));
+    }
+
+    @SubscribeEvent
+    public void onMenuButton(net.minecraftforge.client.event.GuiScreenEvent.ActionPerformedEvent.Pre event) {
+        if (!(event.getGui() instanceof net.minecraft.client.gui.GuiIngameMenu) || event.getButton().id != MENU_BUTTON_ID) return;
+        event.setCanceled(true);
+        Minecraft.getMinecraft().displayGuiScreen(new net.minecraftforge.fml.client.config.GuiConfig(event.getGui(),
+                net.minecraftforge.common.config.ConfigElement.from(com.pathtrace.PTConfig.class).getChildElements(),
+                PathTraceMod.MODID, false, false, "PathTrace settings"));
+    }
+
     static void chat(String msg) {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.player != null) mc.player.sendStatusMessage(new TextComponentString(msg), true);

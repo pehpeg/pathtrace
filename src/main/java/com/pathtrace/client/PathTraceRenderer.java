@@ -63,6 +63,8 @@ final class PathTraceRenderer {
     private final RenderTarget[] expo = new RenderTarget[2];
     private RenderTarget lum;
     private RenderTarget direct;
+    final PerfStats perf = new PerfStats();
+    private int directW, directH;
     private RenderTarget gbuffer;
     private static final int BLOOM_LEVELS = 5;
     private final RenderTarget[] bloomDown = new RenderTarget[BLOOM_LEVELS];
@@ -143,7 +145,9 @@ final class PathTraceRenderer {
         double cy = cam.lastTickPosY + (cam.posY - cam.lastTickPosY) * pt;
         double cz = cam.lastTickPosZ + (cam.posZ - cam.lastTickPosZ) * pt;
 
+        perf.cpuBegin("voxels");
         volume.update(world, cx, cy, cz);
+        perf.cpuEnd();
         if (!volume.isValid()) {
             hasHistory = false;
             return;
@@ -172,11 +176,16 @@ final class PathTraceRenderer {
         float dt = lastNanos == 0 ? 0.016f : MathHelper.clamp((now - lastNanos) / 1.0e9f, 0f, 0.25f);
         lastNanos = now;
 
+        perf.cpuBegin("lights");
         lights.collect(world, cam, pt, volume, cx, cy, cz, mc.gameSettings.thirdPersonView == 0);
         emitters.process(world, 96);
         lightGrid.update(emitters, cx, cy, cz, mc.gameSettings.renderDistanceChunks);
+        perf.cpuEnd();
+        perf.cpuBegin("lod");
         if (PTConfig.lodShadows) lod.update(emitters, cx, cz, mc.gameSettings.renderDistanceChunks);
+        perf.cpuEnd();
         computeLighting(world, cam, pt);
+        perf.beginFrame();
 
         // 1. grab colour + depth of the frame vanilla just drew
         fb.bindFramebuffer(false);
@@ -185,6 +194,7 @@ final class PathTraceRenderer {
         bind2D(0, depthTex);
         GL11.glCopyTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, 0, 0, width, height);
 
+        perf.mark("copy");
         beginFullscreen();
         int prev = 1 - cur;
 
@@ -197,8 +207,11 @@ final class PathTraceRenderer {
         gbufferSh.setMatrix("invProj", invProj);
         gbufferSh.setMatrix("invView", invView);
         gbufferSh.set("depthTexel", 1f / width, 1f / height);
+        gbufferSh.set("cloudY", mc.gameSettings.shouldRenderClouds() != 0
+                ? world.provider.getCloudHeight() - volume.originY() : -1.0e9f);
         drawQuad();
 
+        perf.mark("gbuffer");
         // 2. eye probe
         probe[cur].bind();
         probeSh.use();
@@ -209,6 +222,7 @@ final class PathTraceRenderer {
         probeSh.set("hasHistory", hasHistory ? 1f : 0f);
         drawQuad();
 
+        perf.mark("probe");
         // 3. trace
         accum[cur].bind();
         traceSh.use();
@@ -235,6 +249,7 @@ final class PathTraceRenderer {
         traceSh.set("traceRes", (float) traceW, (float) traceH);
         drawQuad();
 
+        perf.mark("trace");
         // 4. denoise the bounce light
         int indTex = accum[cur].tex[0], geomTex = accum[cur].tex[1];
         if (PTConfig.denoise) {
@@ -253,7 +268,8 @@ final class PathTraceRenderer {
             }
         }
 
-        // 4b. direct light, full resolution, deterministic
+        perf.mark("denoise");
+        // 4b. direct light (at directScale), deterministic
         direct.bind();
         directSh.use();
         setCommon(directSh);
@@ -269,6 +285,7 @@ final class PathTraceRenderer {
         directSh.set("pixelShadows", PTConfig.pixelShadows ? 1f : 0f);
         drawQuad();
         int dirTex = direct.tex[0];
+        perf.mark("direct");
 
         // 4c. bloom from light-source pixels
         int bloomTex = 0;
@@ -306,6 +323,7 @@ final class PathTraceRenderer {
             bloomTex = bloomUp[0].tex[0];
         }
 
+        perf.mark("bloom");
         // 5. auto exposure
         int expTex = 0;
         if (PTConfig.autoExposure) {
@@ -334,6 +352,7 @@ final class PathTraceRenderer {
             expTex = expo[cur].tex[0];
         }
 
+        perf.mark("exposure");
         // 6. composite into Minecraft's framebuffer
         fb.bindFramebuffer(true);
         compositeSh.use();
@@ -353,6 +372,8 @@ final class PathTraceRenderer {
         compositeSh.set("gbufferTex", 7);
         compositeSh.setMatrix("invProj", invProj);
         compositeSh.set("lowRes", (float) traceW, (float) traceH);
+        compositeSh.set("directRes", (float) directW, (float) directH);
+        compositeSh.set("fullRes", (float) width, (float) height);
         compositeSh.set("debugView", PTConfig.debugView);
         bindRaw(8, bloomTex);
         compositeSh.set("bloomTex", 8);
@@ -361,6 +382,7 @@ final class PathTraceRenderer {
         drawQuad();
 
         endFullscreen();
+        perf.mark("composite");
 
         lastProbeTex = probe[cur].tex[0];
         lastExposureTex = expTex;
@@ -392,6 +414,7 @@ final class PathTraceRenderer {
             }
         }
 
+        perf.mark("vanilla");
         GlStateManager.clear(GL11.GL_DEPTH_BUFFER_BIT);
         try {
             renderHandMethod.invoke(mc.entityRenderer, pt, pass);
@@ -430,6 +453,7 @@ final class PathTraceRenderer {
         setGrading(handSh);
         drawQuad();
         endFullscreen();
+        perf.mark("hand");
         return true;
     }
 
@@ -454,6 +478,7 @@ final class PathTraceRenderer {
         s.set("skyColor", skyColor);
         s.set("ambient", ambient);
         s.set("emissiveStrength", (float) PTConfig.emissiveStrength);
+        s.set("lightSaturation", (float) PTConfig.lightSaturation);
         s.set("frame", (float) (frame % 1024));
         s.setVec4Array("dynLightPos", lights.pos);
         s.setVec4Array("dynLightCol", lights.col);
@@ -592,9 +617,11 @@ final class PathTraceRenderer {
         double scale = MathHelper.clamp(PTConfig.renderScale, 0.25, 1.0);
         int tw = Math.max(1, (int) (w * scale));
         int th = Math.max(1, (int) (h * scale));
-        if (w == width && h == height && tw == traceW && th == traceH && sceneTex != -1) return;
+        double ds = MathHelper.clamp(PTConfig.directScale, 0.25, 1.0);
+        int dw = Math.max(1, (int) Math.round(w * ds)), dh = Math.max(1, (int) Math.round(h * ds));
+        if (w == width && h == height && tw == traceW && th == traceH && dw == directW && dh == directH && sceneTex != -1) return;
         deleteTargets();
-        width = w; height = h; traceW = tw; traceH = th;
+        width = w; height = h; traceW = tw; traceH = th; directW = dw; directH = dh;
 
         sceneTex = makeTex(GL11.GL_RGBA8, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, w, h);
         depthTex = makeTex(GL14.GL_DEPTH_COMPONENT24, GL11.GL_DEPTH_COMPONENT, GL11.GL_UNSIGNED_INT, w, h);
@@ -604,7 +631,7 @@ final class PathTraceRenderer {
             probe[i] = new RenderTarget(8, 9, 1, GL11.GL_NEAREST);     // 64 directions + sun visibility row
             expo[i] = new RenderTarget(1, 1, 1, GL11.GL_NEAREST);
         }
-        direct = new RenderTarget(w, h, 1, GL11.GL_NEAREST);
+        direct = new RenderTarget(dw, dh, 1, GL11.GL_NEAREST);
         gbuffer = new RenderTarget(w, h, 1, GL11.GL_NEAREST, GL30.GL_RGBA32F);   // 32-bit: distance must be exact
         for (int i = 0; i < BLOOM_LEVELS; i++) {
             int bw = Math.max(1, w >> (i + 1)), bh = Math.max(1, h >> (i + 1));

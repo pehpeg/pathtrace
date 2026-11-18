@@ -16,6 +16,10 @@ public class PTConfig {
     @Config.RangeDouble(min = 0.25, max = 1.0)
     public static double renderScale = 0.5;
 
+    @Config.Comment("Fraction of screen resolution the direct light and shadows are computed at, upscaled edge-aware. 1.0 = sharpest, 0.5 = about 4x cheaper.")
+    @Config.RangeDouble(min = 0.25, max = 1.0)
+    public static double directScale = 0.5;
+
     @Config.Comment("Frames averaged for bounce/sky light. Higher = smoother, slower to react to changes.")
     @Config.RangeInt(min = 1, max = 256)
     public static int maxAccumulation = 32;
@@ -25,7 +29,7 @@ public class PTConfig {
 
     @Config.Comment("How many of the strongest nearby block/dynamic lights get an exact shadow per pixel (weaker ones share theirs).")
     @Config.RangeInt(min = 0, max = 4)
-    public static int shadowedLights = 4;
+    public static int shadowedLights = 3;
 
     @Config.Comment("Edge-aware wavelet denoiser.")
     public static boolean denoise = true;
@@ -56,6 +60,10 @@ public class PTConfig {
     @Config.Comment("Strength of light cast by torches, glowstone, lava, held/dropped items etc.")
     @Config.RangeDouble(min = 0.0, max = 50.0)
     public static double pointLightStrength = 2.5;
+
+    @Config.Comment("How coloured block light is: 1 = natural tints, 1.6 = clearly orange torches, red redstone, blue sea lanterns...")
+    @Config.RangeDouble(min = 0.0, max = 3.0)
+    public static double lightSaturation = 1.7;
 
     @Config.Comment("Light from held items, dropped items, burning mobs, blazes and fireballs.")
     public static boolean dynamicLights = true;

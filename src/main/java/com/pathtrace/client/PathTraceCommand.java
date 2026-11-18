@@ -39,7 +39,7 @@ final class PathTraceCommand extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/pathtrace <on|off|toggle|status|reload|set <setting> <value>|get <setting>>";
+        return "/pathtrace <on|off|toggle|status|reload|perf|preset <fast|balanced|quality|ultra>|set <setting> <value>|get <setting>>";
     }
 
     @Override
@@ -75,6 +75,31 @@ final class PathTraceCommand extends CommandBase {
             case "status":
                 say(sender, (ClientHandler.isEnabled() ? "§aon" : "§coff") + "§r, version " + PathTraceMod.VERSION);
                 break;
+            case "perf":
+                if (args.length > 1 && args[1].equalsIgnoreCase("reset")) {
+                    ClientHandler.perfReset();
+                    say(sender, "timings reset");
+                    break;
+                }
+                for (String line : ClientHandler.perfReport().split("\n")) say(sender, line);
+                say(sender, "§7(averaged over the last ~20 frames; the 'vanilla' entry is Minecraft's own work between our passes)");
+                break;
+            case "preset": {
+                if (args.length < 2) throw new WrongUsageException("/pathtrace preset <fast|balanced|quality|ultra>");
+                String p = args[1].toLowerCase();
+                switch (p) {
+                    case "fast":     preset(0.4, 0.4, 1, 1); break;
+                    case "balanced": preset(0.5, 0.5, 3, 1); break;
+                    case "quality":  preset(0.5, 1.0, 4, 1); break;
+                    case "ultra":    preset(0.75, 1.0, 4, 2); break;
+                    default: throw new WrongUsageException("/pathtrace preset <fast|balanced|quality|ultra>");
+                }
+                ConfigManager.sync(PathTraceMod.MODID, Config.Type.INSTANCE);
+                ClientHandler.resetHistory();
+                say(sender, "preset " + p + ": renderScale " + PTConfig.renderScale + ", directScale " + PTConfig.directScale
+                        + ", shadowedLights " + PTConfig.shadowedLights + ", bounces " + PTConfig.bounces);
+                break;
+            }
             case "reload":
                 ClientHandler.reloadShaders();
                 say(sender, "shaders reloaded");
@@ -125,6 +150,13 @@ final class PathTraceCommand extends CommandBase {
         }
     }
 
+    private static void preset(double renderScale, double directScale, int shadowed, int bounces) {
+        PTConfig.renderScale = renderScale;
+        PTConfig.directScale = directScale;
+        PTConfig.shadowedLights = shadowed;
+        PTConfig.bounces = bounces;
+    }
+
     private static List<String> settingNames() {
         List<String> names = new ArrayList<>();
         for (Field f : PTConfig.class.getFields()) {
@@ -143,7 +175,10 @@ final class PathTraceCommand extends CommandBase {
     @Override
     public List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args, @Nullable BlockPos targetPos) {
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "on", "off", "toggle", "status", "reload", "set", "get");
+            return getListOfStringsMatchingLastWord(args, "on", "off", "toggle", "status", "reload", "set", "get", "perf", "preset");
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("preset")) {
+            return getListOfStringsMatchingLastWord(args, "fast", "balanced", "quality", "ultra");
         }
         if (args.length == 2 && (args[0].equalsIgnoreCase("set") || args[0].equalsIgnoreCase("get"))) {
             return getListOfStringsMatchingLastWord(args, settingNames());

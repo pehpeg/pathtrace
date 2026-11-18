@@ -223,6 +223,7 @@ final class AutoShot {
         if (frames < minFrames || System.currentTimeMillis() - stepStart < minMillis) return;
 
         ScreenShotHelper.saveScreenshot(mc.gameDir, shot.name + ".png", mc.displayWidth, mc.displayHeight, mc.getFramebuffer());
+        if (shot.enabled) PathTraceMod.LOG.info("[autoshot] perf " + shot.name + ": " + ClientHandler.perfReport().replace('\n', ' '));
         PathTraceMod.LOG.info("[autoshot] saved " + shot.name);
         if (index + 1 < SHOTS.length) {
             begin(mc, index + 1);

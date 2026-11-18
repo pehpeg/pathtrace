@@ -19,6 +19,36 @@ uniform float saturation;
 uniform int debugView;
 uniform sampler2D bloomTex;
 uniform float bloomStrength;
+uniform vec2 directRes;        // resolution the direct light was computed at
+uniform vec2 fullRes;
+
+// Direct light computed below full resolution: joint bilateral upsample (bilinear weights, but only
+// from texels on the same surface: same distance and facing).
+vec3 upsampleDirect(vec2 uv, float dist, vec3 n) {
+    if (directRes.x >= fullRes.x - 0.5) return texture2D(directTex, uv).rgb;
+    vec2 pp = uv * directRes - 0.5;
+    vec2 base = floor(pp);
+    vec2 f = pp - base;
+    vec3 sum = vec3(0.0);
+    float ws = 0.0;
+    vec3 nearest = vec3(0.0);
+    float best = 1.0e9;
+    for (int k = 0; k < 4; k++) {
+        vec2 o = vec2(mod(float(k), 2.0), floor(float(k) * 0.5));
+        vec2 tc = clamp((base + o + 0.5) / directRes, vec2(0.0), vec2(1.0));
+        vec4 g = texture2D(gbufferTex, tc);       // what the direct pass saw at that texel
+        vec3 c = texture2D(directTex, tc).rgb;
+        if (g.w <= 0.0) continue;
+        float dd = abs(g.w - dist) / (0.01 * dist + 0.02);
+        float bw = (o.x > 0.5 ? f.x : 1.0 - f.x) * (o.y > 0.5 ? f.y : 1.0 - f.y);
+        float w = bw * exp(-dd) * pow(max(dot(g.xyz, n), 0.0), 16.0);
+        sum += c * w;
+        ws += w;
+        float score = dd + (1.0 - dot(g.xyz, n)) * 8.0;
+        if (score < best) { best = score; nearest = c; }
+    }
+    return ws > 1e-4 ? sum / ws : nearest;
+}
 
 vec3 aces(vec3 x) {
     return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
@@ -33,7 +63,14 @@ void main() {
         gl_FragColor = vec4(scene + pow(aces(b * eb), vec3(1.0 / 2.2)), 1.0);
         return;
     }
-    float dist = texture2D(gbufferTex, uv).w;
+    vec4 gbHere = texture2D(gbufferTex, uv);
+    float dist = gbHere.w;
+    if (dist <= 0.0) {   // not a lit surface (clouds): pass through like the sky
+        vec3 b = texture2D(bloomTex, uv).rgb * bloomStrength;
+        float eb = exposure * (autoExposure > 0.5 ? texture2D(exposureTex, vec2(0.5)).r : 1.0);
+        gl_FragColor = vec4(scene + pow(aces(b * eb), vec3(1.0 / 2.2)), 1.0);
+        return;
+    }
 
     // joint bilateral upsample: bilinear weights, rejecting low-res texels at another depth
     vec2 pp = uv * lowRes - 0.5;
@@ -56,7 +93,7 @@ void main() {
     } else {
         ind = texture2D(indirectTex, uv).rgb;
     }
-    vec3 dir = texture2D(directTex, uv).rgb;
+    vec3 dir = upsampleDirect(uv, dist, gbHere.xyz);
 
     float e = exposure * (autoExposure > 0.5 ? texture2D(exposureTex, vec2(0.5)).r : 1.0);
     if (debugView == 1 || debugView == 2) {

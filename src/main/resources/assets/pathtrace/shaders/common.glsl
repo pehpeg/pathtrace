@@ -95,13 +95,20 @@ float emission(vec4 v) {
     return mod(voxelAlpha(v), 16.0) / 15.0;
 }
 
+uniform float lightSaturation;   // PTConfig.lightSaturation (LightColors.saturate)
 vec3 emitColorIndex(float idx) {
-    if (idx < 0.5) return vec3(1.00, 0.72, 0.42);
-    if (idx < 1.5) return vec3(1.00, 0.50, 0.18);
-    if (idx < 2.5) return vec3(1.00, 0.20, 0.12);
-    if (idx < 3.5) return vec3(0.75, 0.88, 1.00);
-    if (idx < 4.5) return vec3(0.70, 0.35, 1.00);
-    return vec3(0.50, 1.00, 0.45);
+    vec3 c;
+    if (idx < 0.5) c = vec3(1.00, 0.78, 0.45);
+    else if (idx < 1.5) c = vec3(1.00, 0.45, 0.12);
+    else if (idx < 2.5) c = vec3(1.00, 0.12, 0.06);
+    else if (idx < 3.5) c = vec3(0.60, 0.82, 1.00);
+    else if (idx < 4.5) c = vec3(0.62, 0.25, 1.00);
+    else if (idx < 5.5) c = vec3(0.45, 1.00, 0.40);
+    else if (idx < 6.5) c = vec3(1.00, 0.60, 0.28);
+    else c = vec3(0.40, 0.95, 1.00);
+    float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+    c = max(vec3(l) + (c - l) * lightSaturation, vec3(0.0));
+    return c / max(max(c.r, c.g), max(c.b, 1e-4));
 }
 
 vec3 emitColor(vec4 v) {
@@ -423,6 +430,19 @@ vec3 lightBlock(vec3 lp, float code) {
     return floor(l > 0.5 ? lp - o / l * LIGHT_PUSH : lp);
 }
 
+// Does any open face (mask bit i = EnumFacing i: down, up, north, south, west, east) look towards p?
+bool facesToward(float mask, vec3 blk, vec3 p) {
+    vec3 d = p - (blk + 0.5);
+    float m = mask;
+    if (mod(m, 2.0) > 0.5 && d.y < -0.45) return true; m = floor(m / 2.0);
+    if (mod(m, 2.0) > 0.5 && d.y >  0.45) return true; m = floor(m / 2.0);
+    if (mod(m, 2.0) > 0.5 && d.z < -0.45) return true; m = floor(m / 2.0);
+    if (mod(m, 2.0) > 0.5 && d.z >  0.45) return true; m = floor(m / 2.0);
+    if (mod(m, 2.0) > 0.5 && d.x < -0.45) return true; m = floor(m / 2.0);
+    if (mod(m, 2.0) > 0.5 && d.x >  0.45) return true;
+    return false;
+}
+
 void visitLight(vec4 lp, vec4 lcw, vec3 p, vec3 n) {
     vec3 lc = lcw.rgb;
     vec3 blk = lightBlock(lp.xyz, lightCode(lcw.w));
@@ -435,8 +455,10 @@ void visitLight(vec4 lp, vec4 lcw, vec3 p, vec3 n) {
          || all(lessThan(abs(lp.xyz - g_ex2), vec3(1e-3))) || all(lessThan(abs(lp.xyz - g_ex3), vec3(1e-3)))) return;
     }
     vec3 c;
+    float faces = lightFaces(lcw.w);
+    if (faces > 0.5 && !facesToward(faces, blk, p)) return;   // all its open faces look away from p
     float w = lightTerm(lp, lc, range, p, n, c);
-    lp.w = lightFaces(lcw.w);   // from here on lp.w carries the open-face mask (for lightTarget)
+    lp.w = faces;   // from here on lp.w carries the open-face mask (for lightTarget)
     if (w <= 0.0) return;
     g_sum += c;
     g_total += w;
@@ -534,7 +556,9 @@ float g_lightScale = 1.0;
 vec3 lightTarget(vec3 p, vec4 lp, vec3 blk, vec3 j) {
     float mask = lp.w;
     if (mask < 0.5) return lp.xyz;                     // torches, dynamic lights: a point
-    vec3 lo = blk + 0.04, hi = blk + 0.96;
+    // keep the aim point away from the face's edges: aiming right at an edge, a ray from the floor
+    // or wall next to the light runs along that surface and clips the block seams (thin dark lines)
+    vec3 lo = blk + 0.25, hi = blk + 0.75;
     vec3 q = clamp(p + j, lo, hi);
     vec3 best = lp.xyz;
     float bestD = 1.0e9;

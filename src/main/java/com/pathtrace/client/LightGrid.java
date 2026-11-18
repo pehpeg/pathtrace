@@ -49,6 +49,7 @@ final class LightGrid {
     /** Average of the shaders' wrap term, for light added back without a surface normal. */
     private static final float RESID_WRAP = 0.6f;
     private final double[] ld2 = new double[MAX_LIGHTS];
+    private final float[] lbx = new float[MAX_LIGHTS], lby = new float[MAX_LIGHTS], lbz = new float[MAX_LIGHTS];   // block centre
     /** Reach of each light: its full range, shrunk where lights are so crowded a cell's list would overflow. */
     private final float[] lreach = new float[MAX_LIGHTS];
     /** Per cell, 8 corner samples (rgb, 1 = has any) of the light from the lights that didn't fit in its list. */
@@ -75,7 +76,7 @@ final class LightGrid {
 
     void update(EmitterIndex emitters, double cx, double cy, double cz, int renderDistanceChunks) {
         int half = MathHelper.clamp(renderDistanceChunks * 16 + 16, 64, 256);
-        int ngx = 2 * half / CELL, ngy = 32, ngz = ngx;
+        int ngx = 2 * half / CELL, ngy = 16, ngz = ngx;   // 128 blocks tall around the camera
         int nox = (MathHelper.floor(cx) >> 3 << 3) - half;
         int noy = (MathHelper.floor(cy) >> 3 << 3) - ngy * CELL / 2;
         int noz = (MathHelper.floor(cz) >> 3 << 3) - half;
@@ -84,6 +85,7 @@ final class LightGrid {
         framesSinceBuild++;
         boolean changed = emitters.version != builtVersion && framesSinceBuild >= 8;
         boolean strengthChanged = PTConfig.pointLightStrength != builtStrength;
+        if (LightColors.update()) strengthChanged = true;
         if (lightTex != -1 && !resized && !moved && !changed && !strengthChanged) return;
 
         if (resized || lightTex == -1) {
@@ -157,6 +159,7 @@ final class LightGrid {
                     }
                     lx[i] = px - ox; ly[i] = py - oy; lz[i] = pz - oz;
                     llight[i] = light; lcolor[i] = color; loffset[i] = offset; lfaces[i] = faces; ld2[i] = d2;
+                    lbx[i] = x + 0.5f - ox; lby[i] = y + 0.5f - oy; lbz[i] = z + 0.5f - oz;
                 });
 
         int cells = gx * gy * gz;
@@ -174,6 +177,7 @@ final class LightGrid {
             for (int cz2 = c0z; cz2 <= c1z; cz2++)
                 for (int cy2 = c0y; cy2 <= c1y; cy2++)
                     for (int cx2 = c0x; cx2 <= c1x; cx2++) {
+                        if (!emitsInto(i, cx2, cy2, cz2)) continue;
                         // distance from the light to the nearest point of the cell
                         float dx = Math.max(0, Math.max(cx2 * CELL - lx[i], lx[i] - (cx2 + 1) * CELL));
                         float dy = Math.max(0, Math.max(cy2 * CELL - ly[i], ly[i] - (cy2 + 1) * CELL));
@@ -204,6 +208,7 @@ final class LightGrid {
             for (int cz2 = c0z; cz2 <= c1z; cz2++)
                 for (int cy2 = c0y; cy2 <= c1y; cy2++)
                     for (int cx2 = c0x; cx2 <= c1x; cx2++) {
+                        if (!emitsInto(i, cx2, cy2, cz2)) continue;
                         int c = (cz2 * gy + cy2) * gx + cx2;
                         int base = c * K;
                         if (cellIdx[base + K - 1] < 0 && cellIdx[base] < 0) continue;
@@ -270,4 +275,19 @@ final class LightGrid {
         GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, CELL_TEX_W, cellTexH, GL11.GL_RGBA, GL11.GL_FLOAT, cellBuf);
     }
 
+
+    /**
+     * Light culling: a glowing block only shines out of its open faces, so a cell lying entirely
+     * behind all of them can't get any of its light (e.g. glowstone in a wall, seen from the room
+     * on the other side). Lights with no face info (torches, ...) shine everywhere.
+     */
+    private boolean emitsInto(int i, int cx, int cy, int cz) {
+        int m = lfaces[i];
+        if (m == 0) return true;
+        float x0 = cx * CELL, x1 = x0 + CELL, y0 = cy * CELL, y1 = y0 + CELL, z0 = cz * CELL, z1 = z0 + CELL;
+        float bx = lbx[i], by = lby[i], bz = lbz[i];
+        return ((m & 1) != 0 && y0 < by - 0.45f) || ((m & 2) != 0 && y1 > by + 0.45f)
+                || ((m & 4) != 0 && z0 < bz - 0.45f) || ((m & 8) != 0 && z1 > bz + 0.45f)
+                || ((m & 16) != 0 && x0 < bx - 0.45f) || ((m & 32) != 0 && x1 > bx + 0.45f);
+    }
 }
