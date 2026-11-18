@@ -59,6 +59,10 @@ final class VoxelVolume {
     int shapeIdTexture() { return shapeIdTex; }
     int coarseTexture() { return coarseTex; }
     int heightTexture() { return heightTex; }
+    /** Texel offset of the window: world block ox lives in texel ox & 127 (the textures repeat). */
+    float wrapX() { return wrap(ox); }
+    float wrapY() { return wrap(oy); }
+    float wrapZ() { return wrap(oz); }
 
     void invalidate() {
         valid = false;
@@ -77,6 +81,11 @@ final class VoxelVolume {
         dirtyBoxes.add(new int[]{x1, y1, z1, x2, y2, z2});
     }
 
+    /**
+     * The textures are addressed toroidally: world block (x, y, z) always lives in texel
+     * (x & 127, y & 127, z & 127). Moving the window then only needs the newly exposed slab filled
+     * (the texels it reuses held the slab that just left), instead of rebuilding all 2 million blocks.
+     */
     void update(World w, double px, double py, double pz) {
         if (tex3d == -1) createTextures();
         if (w != world) {
@@ -87,10 +96,14 @@ final class VoxelVolume {
         int ty = ((MathHelper.floor(py) >> 3) << 3) - N / 2;
         int tz = ((MathHelper.floor(pz) >> 3) << 3) - N / 2;
 
-        if (!rebuilding && (!valid || Math.abs(tx - ox) >= 16 || Math.abs(ty - oy) >= 16 || Math.abs(tz - oz) >= 16)) {
-            rebuilding = true;
-            bx = tx; by = ty; bz = tz;
-            buildZ = 0;
+        if (!rebuilding && scrollAxis < 0) {
+            if (!valid || Math.abs(tx - ox) >= N / 2 || Math.abs(ty - oy) >= N / 2 || Math.abs(tz - oz) >= N / 2) {
+                rebuilding = true;          // first time / teleported: fill everything
+                bx = tx; by = ty; bz = tz;
+                buildZ = 0;
+            } else if (Math.abs(tx - ox) >= 16) startScroll(0, tx);
+            else if (Math.abs(tz - oz) >= 16) startScroll(2, tz);
+            else if (Math.abs(ty - oy) >= 16) startScroll(1, ty);
         }
 
         if (rebuilding) {
@@ -101,9 +114,9 @@ final class VoxelVolume {
                 ox = bx; oy = by; oz = bz;
                 for (int cz = 0; cz < C; cz++)
                     for (int cy = 0; cy < C; cy++)
-                        for (int cx = 0; cx < C; cx++) computeCoarse(cx, cy, cz);
-                uploadVoxelBox(0, 0, 0, N, N, N);
-                uploadCoarseBox(0, 0, 0, C, C, C);
+                        for (int cx = 0; cx < C; cx++) computeCoarseTexel(cx, cy, cz);
+                uploadAllVoxels();
+                uploadAllCoarse();
                 uploadHeights();
                 valid = true;
                 rebuilding = false;
@@ -113,18 +126,63 @@ final class VoxelVolume {
         }
 
         heightsDirty = false;
+        if (scrollAxis >= 0) stepScroll();
         processDirty();
-        for (int i = 0; i < PTConfig.refreshSlicesPerFrame; i++) {
-            int z = refreshZ;
-            fillSlice(ox, oy, oz, z);
-            uploadVoxelBox(0, 0, z, N, N, 1);
-            int cz = z >> 2;
-            for (int cy = 0; cy < C; cy++)
-                for (int cx = 0; cx < C; cx++) computeCoarse(cx, cy, cz);
-            uploadCoarseBox(0, 0, cz, C, C, 1);
-            refreshZ = (refreshZ + 1) % N;
+        if (PTConfig.refreshSlicesPerFrame > 0 && ++refreshTick >= REFRESH_EVERY) {
+            refreshTick = 0;
+            for (int i = 0; i < PTConfig.refreshSlicesPerFrame; i++) {
+                int z = refreshZ;
+                fillSlice(ox, oy, oz, z);
+                uploadWorldBox(ox, oy, oz + z, N, N, 1);
+                refreshCoarse(ox, oy, oz + z, N, N, 1);
+                refreshZ = (refreshZ + 1) % N;
+            }
         }
         if (heightsDirty) uploadHeights();
+    }
+
+    /** Background re-scan (a safety net; block and chunk changes arrive as events): one slice every this many frames. */
+    private static final int REFRESH_EVERY = 8;
+    private int refreshTick;
+
+    // scrolling state: which axis, its new origin, the world range [scrollFrom, scrollTo) still to fill
+    private int scrollAxis = -1, scrollTarget, scrollFrom, scrollTo, scrollStart;
+
+    private void startScroll(int axis, int target) {
+        int cur = axis == 0 ? ox : axis == 1 ? oy : oz;
+        scrollAxis = axis;
+        scrollTarget = target;
+        if (target > cur) { scrollFrom = cur + N; scrollTo = target + N; }
+        else { scrollFrom = target; scrollTo = cur; }
+        scrollStart = scrollFrom;
+    }
+
+    private void stepScroll() {
+        int budget = Math.max(1, PTConfig.rebuildSlicesPerFrame / 4);   // 128x128 slices per frame
+        while (budget-- > 0 && scrollFrom < scrollTo) {
+            int s = scrollFrom++;
+            // one 1-thick slab at world coordinate s on the scroll axis, across the window on the others
+            int x0 = ox, y0 = oy, z0 = oz, w = N, h = N, d = N;
+            if (scrollAxis == 0) { x0 = s; w = 1; }
+            else if (scrollAxis == 1) { y0 = s; h = 1; }
+            else { z0 = s; d = 1; }
+            for (int z = z0; z < z0 + d; z++)
+                for (int y = y0; y < y0 + h; y++)
+                    for (int x = x0; x < x0 + w; x++) fillVoxelWorld(x, y, z);
+            if (scrollAxis != 1)
+                for (int z = z0; z < z0 + d; z++)
+                    for (int x = x0; x < x0 + w; x++) fillHeightWorld(x, z);
+            uploadWorldBox(x0, y0, z0, w, h, d);
+        }
+        if (scrollFrom >= scrollTo) {
+            if (scrollAxis == 0) ox = scrollTarget; else if (scrollAxis == 1) oy = scrollTarget; else oz = scrollTarget;
+            // coarse cells of the filled slab
+            int n = scrollTo - scrollStart;
+            if (scrollAxis == 0) refreshCoarse(scrollStart, oy, oz, n, N, N);
+            else if (scrollAxis == 1) refreshCoarse(ox, scrollStart, oz, N, n, N);
+            else refreshCoarse(ox, oy, scrollStart, N, N, n);
+            scrollAxis = -1;
+        }
     }
 
     // ------------------------------------------------------------------ filling
@@ -137,48 +195,52 @@ final class VoxelVolume {
             it.remove();
             int x = p.getX() - ox, y = p.getY() - oy, z = p.getZ() - oz;
             if (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) continue;
-            fillVoxel(ox, oy, oz, x, y, z);
-            uploadVoxelBox(x, y, z, 1, 1, 1);
-            computeCoarse(x >> 2, y >> 2, z >> 2);
-            uploadCoarseBox(x >> 2, y >> 2, z >> 2, 1, 1, 1);
-            fillHeight(ox, oz, x, z);
+            fillVoxelWorld(p.getX(), p.getY(), p.getZ());
+            uploadWorldBox(p.getX(), p.getY(), p.getZ(), 1, 1, 1);
+            refreshCoarse(p.getX(), p.getY(), p.getZ(), 1, 1, 1);
+            fillHeightWorld(p.getX(), p.getZ());
         }
 
-        int boxes = 2;
-        while (boxes-- > 0 && !dirtyBoxes.isEmpty()) {
-            int[] b = dirtyBoxes.poll();
-            int x0 = Math.max(0, b[0] - ox), x1 = Math.min(N - 1, b[3] - ox);
-            int y0 = Math.max(0, b[1] - oy), y1 = Math.min(N - 1, b[4] - oy);
-            int z0 = Math.max(0, b[2] - oz), z1 = Math.min(N - 1, b[5] - oz);
-            if (x0 > x1 || y0 > y1 || z0 > z1) {
-                boxes++; // nothing to do, doesn't cost budget
-                continue;
-            }
+        // changed areas (chunk loads arrive as whole 16x256x16 columns): at most ~8k blocks per frame,
+        // big boxes are split into horizontal layers so a chunk load never costs one long frame
+        int blockBudget = 8192;
+        while (blockBudget > 0 && !dirtyBoxes.isEmpty()) {
+            int[] b = dirtyBoxes.peek();
+            int x0 = Math.max(ox, b[0]), x1 = Math.min(ox + N - 1, b[3]);
+            int y0 = Math.max(oy, b[1]), y1 = Math.min(oy + N - 1, b[4]);
+            int z0 = Math.max(oz, b[2]), z1 = Math.min(oz + N - 1, b[5]);
+            if (x0 > x1 || y0 > y1 || z0 > z1) { dirtyBoxes.poll(); continue; }
+            int layer = (x1 - x0 + 1) * (z1 - z0 + 1);
+            int layers = Math.max(1, Math.min(y1 - y0 + 1, blockBudget / Math.max(1, layer)));
+            int ye = y0 + layers - 1;
             for (int z = z0; z <= z1; z++)
-                for (int y = y0; y <= y1; y++)
-                    for (int x = x0; x <= x1; x++) fillVoxel(ox, oy, oz, x, y, z);
+                for (int y = y0; y <= ye; y++)
+                    for (int x = x0; x <= x1; x++) fillVoxelWorld(x, y, z);
             for (int z = z0; z <= z1; z++)
-                for (int x = x0; x <= x1; x++) fillHeight(ox, oz, x, z);
-            uploadVoxelBox(x0, y0, z0, x1 - x0 + 1, y1 - y0 + 1, z1 - z0 + 1);
-            int cx0 = x0 >> 2, cx1 = x1 >> 2, cy0 = y0 >> 2, cy1 = y1 >> 2, cz0 = z0 >> 2, cz1 = z1 >> 2;
-            for (int cz = cz0; cz <= cz1; cz++)
-                for (int cy = cy0; cy <= cy1; cy++)
-                    for (int cx = cx0; cx <= cx1; cx++) computeCoarse(cx, cy, cz);
-            uploadCoarseBox(cx0, cy0, cz0, cx1 - cx0 + 1, cy1 - cy0 + 1, cz1 - cz0 + 1);
+                for (int x = x0; x <= x1; x++) fillHeightWorld(x, z);
+            uploadWorldBox(x0, y0, z0, x1 - x0 + 1, layers, z1 - z0 + 1);
+            refreshCoarse(x0, y0, z0, x1 - x0 + 1, layers, z1 - z0 + 1);
+            blockBudget -= layers * layer;
+            if (ye >= y1) dirtyBoxes.poll();
+            else b[1] = ye + 1;   // the rest of this box next time
         }
     }
 
     private void fillSlice(int baseX, int baseY, int baseZ, int z) {
         for (int x = 0; x < N; x++) {
-            fillHeight(baseX, baseZ, x, z);
-            for (int y = 0; y < N; y++) fillVoxel(baseX, baseY, baseZ, x, y, z);
+            fillHeightWorld(baseX + x, baseZ + z);
+            for (int y = 0; y < N; y++) fillVoxelWorld(baseX + x, baseY + y, baseZ + z);
         }
     }
 
-    private void fillHeight(int baseX, int baseZ, int x, int z) {
-        pos.setPos(baseX + x, 0, baseZ + z);
+    private static int wrap(int v) {
+        return v & (N - 1);
+    }
+
+    private void fillHeightWorld(int wx, int wz) {
+        pos.setPos(wx, 0, wz);
         int h = world.getHeight(pos).getY();
-        int hi = (z * N + x) * 4;
+        int hi = (wrap(wz) * N + wrap(wx)) * 4;
         heights.put(hi, (byte) Math.max(0, Math.min(255, h)));
         heights.put(hi + 1, (byte) 0);
         heights.put(hi + 2, (byte) 0);
@@ -191,15 +253,14 @@ final class VoxelVolume {
         shapeIds.putInt(idx, 0);
     }
 
-    private void fillVoxel(int baseX, int baseY, int baseZ, int x, int y, int z) {
-        int key = (z * N + y) * N + x;
+    private void fillVoxelWorld(int wx, int wy, int wz) {
+        int key = (wrap(wz) * N + wrap(wy)) * N + wrap(wx);
         int idx = key * 4;
-        int wy = baseY + y;
         if (wy < 0 || wy > 255) {
             clearVoxel(idx);
             return;
         }
-        pos.setPos(baseX + x, wy, baseZ + z);
+        pos.setPos(wx, wy, wz);
         IBlockState s = world.getBlockState(pos);
         Material m = s.getMaterial();
         if (m == Material.AIR) {
@@ -245,7 +306,17 @@ final class VoxelVolume {
         shapeIds.put(idx + 3, (byte) 0);
     }
 
-    private void computeCoarse(int cx, int cy, int cz) {
+    /** Recompute + upload the coarse cells covering a world box. */
+    private void refreshCoarse(int x, int y, int z, int w, int h, int d) {
+        int cx0 = x >> 2, cx1 = (x + w - 1) >> 2, cy0 = y >> 2, cy1 = (y + h - 1) >> 2, cz0 = z >> 2, cz1 = (z + d - 1) >> 2;
+        for (int cz = cz0; cz <= cz1; cz++)
+            for (int cy = cy0; cy <= cy1; cy++)
+                for (int cx = cx0; cx <= cx1; cx++) computeCoarseTexel(cx & (C - 1), cy & (C - 1), cz & (C - 1));
+        uploadWorldCoarse(cx0, cy0, cz0, cx1 - cx0 + 1, cy1 - cy0 + 1, cz1 - cz0 + 1);
+    }
+
+    /** cx, cy, cz: coarse texel coordinates (each covers texels 4c..4c+3, which are 4 aligned world blocks). */
+    private void computeCoarseTexel(int cx, int cy, int cz) {
         byte v = 0;
         search:
         for (int z = cz * 4; z < cz * 4 + 4; z++)
@@ -258,6 +329,34 @@ final class VoxelVolume {
         coarse.put((cz * C + cy) * C + cx, v);
     }
 
+    /** Upload a world box of voxels, split where it wraps around the texture edges. */
+    private void uploadWorldBox(int x, int y, int z, int w, int h, int d) {
+        w = Math.min(w, N); h = Math.min(h, N); d = Math.min(d, N);
+        int tx = wrap(x), ty = wrap(y), tz = wrap(z);
+        int w1 = Math.min(w, N - tx), h1 = Math.min(h, N - ty), d1 = Math.min(d, N - tz);
+        for (int a = 0; a < 2; a++) for (int b = 0; b < 2; b++) for (int c = 0; c < 2; c++) {
+            int bx0 = a == 0 ? tx : 0, bw = a == 0 ? w1 : w - w1;
+            int by0 = b == 0 ? ty : 0, bh = b == 0 ? h1 : h - h1;
+            int bz0 = c == 0 ? tz : 0, bd = c == 0 ? d1 : d - d1;
+            if (bw > 0 && bh > 0 && bd > 0) uploadVoxelBox(bx0, by0, bz0, bw, bh, bd);
+        }
+    }
+
+    private void uploadWorldCoarse(int cx, int cy, int cz, int w, int h, int d) {
+        w = Math.min(w, C); h = Math.min(h, C); d = Math.min(d, C);
+        int tx = cx & (C - 1), ty = cy & (C - 1), tz = cz & (C - 1);
+        int w1 = Math.min(w, C - tx), h1 = Math.min(h, C - ty), d1 = Math.min(d, C - tz);
+        for (int a = 0; a < 2; a++) for (int b = 0; b < 2; b++) for (int c = 0; c < 2; c++) {
+            int bx0 = a == 0 ? tx : 0, bw = a == 0 ? w1 : w - w1;
+            int by0 = b == 0 ? ty : 0, bh = b == 0 ? h1 : h - h1;
+            int bz0 = c == 0 ? tz : 0, bd = c == 0 ? d1 : d - d1;
+            if (bw > 0 && bh > 0 && bd > 0) uploadCoarseBox(bx0, by0, bz0, bw, bh, bd);
+        }
+    }
+
+    private void uploadAllVoxels() { uploadVoxelBox(0, 0, 0, N, N, N); }
+    private void uploadAllCoarse() { uploadCoarseBox(0, 0, 0, C, C, C); }
+
     // ------------------------------------------------------------------ GL
 
     private void createTextures() {
@@ -269,8 +368,8 @@ final class VoxelVolume {
         GlStateManager.bindTexture(heightTex);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL11.GL_REPEAT);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL11.GL_REPEAT);
         GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, N, N, 0,
                 GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, (ByteBuffer) null);
     }
@@ -280,9 +379,9 @@ final class VoxelVolume {
         GL11.glBindTexture(GL12.GL_TEXTURE_3D, id);
         GL11.glTexParameteri(GL12.GL_TEXTURE_3D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
         GL11.glTexParameteri(GL12.GL_TEXTURE_3D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
-        GL11.glTexParameteri(GL12.GL_TEXTURE_3D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
-        GL11.glTexParameteri(GL12.GL_TEXTURE_3D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
-        GL11.glTexParameteri(GL12.GL_TEXTURE_3D, GL12.GL_TEXTURE_WRAP_R, GL12.GL_CLAMP_TO_EDGE);
+        GL11.glTexParameteri(GL12.GL_TEXTURE_3D, GL11.GL_TEXTURE_WRAP_S, GL11.GL_REPEAT);
+        GL11.glTexParameteri(GL12.GL_TEXTURE_3D, GL11.GL_TEXTURE_WRAP_T, GL11.GL_REPEAT);
+        GL11.glTexParameteri(GL12.GL_TEXTURE_3D, GL12.GL_TEXTURE_WRAP_R, GL11.GL_REPEAT);
         GL12.glTexImage3D(GL12.GL_TEXTURE_3D, 0, internal, size, size, size, 0,
                 format, GL11.GL_UNSIGNED_BYTE, (ByteBuffer) null);
         GL11.glBindTexture(GL12.GL_TEXTURE_3D, 0);

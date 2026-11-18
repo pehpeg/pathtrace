@@ -471,6 +471,7 @@ final class PathTraceRenderer {
         s.set("voxelTex", 6);
         s.set("coarseTex", 7);
         s.set("volumeSize", (float) VoxelVolume.N);
+        s.set("volumeWrap", volume.wrapX(), volume.wrapY(), volume.wrapZ());
         s.set("originY", (float) volume.originY());
         s.set("camPos", camV);
         s.set("lightDir", lightDir);

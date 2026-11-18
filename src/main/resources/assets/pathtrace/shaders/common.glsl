@@ -7,6 +7,7 @@ uniform sampler2D heightTex;  // world height per column
 uniform sampler3D shapeIdTex; // per block: number of its 16^3 shape (R + 256 G), 0 = full block
 uniform sampler3D shapeTex;   // ShapeAtlas: 32 x 32 bricks of 16x16x16 cells
 uniform float volumeSize;
+uniform vec3 volumeWrap;      // texel of the window's first block (textures are toroidal, see VoxelVolume)
 uniform float originY;
 uniform vec3 camPos;
 
@@ -66,7 +67,7 @@ float luminance(vec3 c) {
 
 // ------------------------------------------------------------------ voxels
 vec4 fetchVoxel(vec3 cell) {
-    return texture3D(voxelTex, (cell + 0.5) / volumeSize);
+    return texture3D(voxelTex, (cell + volumeWrap + 0.5) / volumeSize);
 }
 
 bool isSolid(vec4 v) {
@@ -121,7 +122,7 @@ bool insideVolume(vec3 c) {
 }
 
 bool coarseEmpty(vec3 cell) {
-    return texture3D(coarseTex, (floor(cell * 0.25) + 0.5) / (volumeSize * 0.25)).r < 0.5;
+    return texture3D(coarseTex, (floor(cell * 0.25) + volumeWrap * 0.25 + 0.5) / (volumeSize * 0.25)).r < 0.5;
 }
 
 // ---- sub-block shapes: a non-full block is a 16x16x16 grid, one cell per texture pixel
@@ -129,7 +130,7 @@ bool coarseEmpty(vec3 cell) {
 #define SHAPE_BRICKS 32.0
 
 float shapeIdAt(vec3 cell) {
-    vec4 v = texture3D(shapeIdTex, (cell + 0.5) / volumeSize);
+    vec4 v = texture3D(shapeIdTex, (cell + volumeWrap + 0.5) / volumeSize);
     return floor(v.r * 255.0 + 0.5) + 256.0 * floor(v.g * 255.0 + 0.5);
 }
 
@@ -324,7 +325,7 @@ bool shadowBlocked(vec3 p, vec3 dir, float maxT, vec3 targetCell) {
 float escapeVisibility(vec3 p) {
     if (p.y <= 0.0) return 0.0;
     vec2 c = clamp(floor(p.xz), vec2(0.0), vec2(volumeSize - 1.0));
-    float h = texture2D(heightTex, (c + 0.5) / volumeSize).r * 255.0 - originY;
+    float h = texture2D(heightTex, (c + volumeWrap.xz + 0.5) / volumeSize).r * 255.0 - originY;
     return p.y >= h - 0.5 ? 1.0 : 0.0;
 }
 

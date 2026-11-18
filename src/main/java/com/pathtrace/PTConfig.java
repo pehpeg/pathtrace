@@ -85,7 +85,7 @@ public class PTConfig {
     @Config.RangeInt(min = 0, max = 5)
     public static int debugView = 0;
 
-    @Config.Comment("Voxel slices re-scanned per frame as a background safety net (block changes are picked up instantly anyway).")
+    @Config.Comment("Voxel slices re-scanned every 8 frames as a background safety net (block and chunk changes are picked up instantly anyway). 0 = off.")
     @Config.RangeInt(min = 0, max = 32)
     public static int refreshSlicesPerFrame = 1;
 
