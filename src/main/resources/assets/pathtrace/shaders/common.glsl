@@ -345,6 +345,12 @@ vec3 cosineDirection(vec3 n) {
     return normalize(t * (cos(phi) * r) + b * (sin(phi) * r) + n * sqrt(max(0.0, 1.0 - r2)));
 }
 
+// NaN / infinity guard: one bad pixel would otherwise spread through the denoiser and history
+vec3 sane(vec3 c) {
+    bool ok = abs(c.r) < 1.0e6 && abs(c.g) < 1.0e6 && abs(c.b) < 1.0e6;
+    return ok ? c : vec3(0.0);
+}
+
 // ------------------------------------------------------------------ point lights
 // visitLights(p, n) walks the dynamic lights and the block lights of p's grid cell, and leaves:
 //   g_sum    total unshadowed light
@@ -362,6 +368,9 @@ float g_topW0, g_topW1, g_topW2, g_topW3;
 vec3 g_ownCell;
 vec3 g_glow;
 bool g_wantTop = false;
+// with g_exclude, lights at the g_ex* positions are skipped (they already got an exact shadow ray)
+bool g_exclude = false;
+vec3 g_ex0, g_ex1, g_ex2, g_ex3;
 
 float lightTerm(vec4 lp, vec3 lc, vec3 p, vec3 n, out vec3 contrib) {
     vec3 L = lp.xyz - p;
@@ -390,6 +399,10 @@ void visitLight(vec4 lp, vec4 lcw, vec3 p, vec3 n) {
     vec3 blk = lightBlock(lp.xyz, lcw.w);
     if (all(equal(blk, g_ownCell))) {
         g_glow = max(g_glow, lc / max(max(lc.r, lc.g), max(lc.b, 1e-4)) * ((lp.w - 0.5) / 15.0));
+    }
+    if (g_exclude) {
+        if (all(lessThan(abs(lp.xyz - g_ex0), vec3(1e-3))) || all(lessThan(abs(lp.xyz - g_ex1), vec3(1e-3)))
+         || all(lessThan(abs(lp.xyz - g_ex2), vec3(1e-3))) || all(lessThan(abs(lp.xyz - g_ex3), vec3(1e-3)))) return;
     }
     vec3 c;
     float w = lightTerm(lp, lc, p, n, c);
@@ -448,6 +461,30 @@ void visitLights(vec3 p, vec3 n) {
     }
 }
 
+// Many lights close together: vanilla takes the brightest, a plain sum blows out. The sum is
+// kept as is up to about two nearby lights' worth, then rolls off smoothly (towards 2x that).
+const float LIGHT_KNEE = 3.0;
+float lightCrowding(float total) {
+    if (total <= LIGHT_KNEE) return 1.0;
+    float over = total - LIGHT_KNEE;
+    return (LIGHT_KNEE + over / (1.0 + over / LIGHT_KNEE)) / total;
+}
+float g_lightScale = 1.0;
+
+// Find the strongest lights at p (the ones direct.fsh shadows exactly), keeping at most `count`.
+void findTopLights(vec3 p, vec3 n, vec3 ownCell, int count) {
+    g_wantTop = true;
+    g_exclude = false;
+    g_ownCell = ownCell;
+    visitLights(p, n);
+    g_wantTop = false;
+    g_lightScale = lightCrowding(g_total);
+    if (count < 4) g_topW3 = 0.0;
+    if (count < 3) g_topW2 = 0.0;
+    if (count < 2) g_topW1 = 0.0;
+    if (count < 1) g_topW0 = 0.0;
+}
+
 // 1 if nothing blocks the segment from p to the light at lp (hits on its own block don't count)
 vec3 lightVisible(vec3 p, vec3 lp, vec3 lightBlockCell) {
     vec3 L = lp - p;
@@ -462,8 +499,9 @@ vec3 lightVisible(vec3 p, vec3 lp, vec3 lightBlockCell) {
 vec3 pointLights(vec3 p, vec3 n, bool shadows) {
     g_ownCell = vec3(-1.0e9);
     visitLights(p, n);
-    if (g_total <= 1e-5 || !shadows) return g_sum;
-    return g_sum * lightVisible(p, g_pick.xyz, g_pickCell);
+    float k = lightCrowding(g_total);
+    if (g_total <= 1e-5 || !shadows) return g_sum * k;
+    return g_sum * k * lightVisible(p, g_pick.xyz, g_pickCell);
 }
 
 // 64 fixed directions on a sphere (Fibonacci), shared by the eye probe and the hand pass.

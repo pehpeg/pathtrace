@@ -21,6 +21,25 @@ uniform float hasHistory;
 uniform float maxAccumIndirect;
 uniform int bounces;
 uniform vec2 traceRes;
+uniform int shadowedLights;
+
+// Every point light except the strongest few (those get exact shadows in direct.fsh):
+// one of them is picked in proportion to its contribution and gets a shadow ray that
+// stands in for all of them. Noisy per frame, but it is accumulated and denoised.
+vec3 remainingLights(vec3 P, vec3 N, vec3 origin) {
+    vec3 own = floor(P - N * 0.25);
+    findTopLights(P, N, insideVolume(own) ? vec3(-1.0e9) : own, shadowedLights);
+    float scale = g_lightScale;
+    g_ex0 = g_topW0 > 0.0 ? g_topP0.xyz : vec3(-1.0e9);
+    g_ex1 = g_topW1 > 0.0 ? g_topP1.xyz : vec3(-1.0e9);
+    g_ex2 = g_topW2 > 0.0 ? g_topP2.xyz : vec3(-1.0e9);
+    g_ex3 = g_topW3 > 0.0 ? g_topP3.xyz : vec3(-1.0e9);
+    g_exclude = true;
+    visitLights(P, N);
+    g_exclude = false;
+    if (g_total <= 1e-5) return vec3(0.0);
+    return g_sum * scale * lightVisible(origin, g_pick.xyz, g_pickCell);
+}
 
 void main() {
     rngPix = gl_FragCoord.xy;
@@ -66,6 +85,8 @@ void main() {
         nrm = hn;
     }
     indirect = min(indirect, vec3(8.0));   // tame fireflies
+    indirect += min(sane(remainingLights(P, N, origin)), vec3(24.0));
+    indirect = sane(indirect);
 
     // ---------------- temporal accumulation (bilinear, geometry-validated reprojection)
     vec4 histI = vec4(0.0);
@@ -97,6 +118,7 @@ void main() {
     float cI = 1.0;
     if (wsum > 0.05) {
         histI /= wsum;
+        histI.rgb = sane(histI.rgb);
         cI = min(histI.a + 1.0, maxAccumIndirect);
         outI = mix(histI.rgb, indirect, 1.0 / cI);
     }

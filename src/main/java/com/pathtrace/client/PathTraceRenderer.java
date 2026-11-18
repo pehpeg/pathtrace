@@ -221,6 +221,7 @@ final class PathTraceRenderer {
         traceSh.set("histGeom", 3);
         bind2D(4, gbuffer.tex[0]);
         traceSh.set("gbufferTex", 4);
+        traceSh.set("shadowedLights", PTConfig.shadowedLights);
         traceSh.setMatrix("invProj", invProj);
         traceSh.setMatrix("invView", invView);
         traceSh.setMatrix("prevProj", prevProj);

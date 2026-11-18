@@ -42,6 +42,7 @@ void main() {
                      * exp(-abs(gq.w - g.w) / depthTol)
                      * pow(max(dot(gq.xyz, g.xyz), 0.0), 64.0);
             vec3 qi = texture2D(inIndirect, tc).rgb;
+            if (!(abs(qi.r) < 1.0e6 && abs(qi.g) < 1.0e6 && abs(qi.b) < 1.0e6)) continue;
             float w1 = wg * exp(-abs(lum(qi) - li) / (sigI * (li + 0.05)));
             sumI += qi * w1;
             wI += w1;
