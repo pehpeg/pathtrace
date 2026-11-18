@@ -65,6 +65,7 @@ final class AutoShot {
     private static final double[] FLUSH = {27.5, 2.0, 23.5}, FLUSH_T = {28.0, -1.0, 15.0};
     // close-up of the fence / iron bars bases (shadows inside non-full blocks' own spaces)
     private static final double[] CLOSE = {20.0, 0.5, 15.0}, CLOSE_T = {20.0, 0.0, 10.0};
+    private static final double[] TOP = {20.0, 7.0, 12.0}, TOP_T = {20.0, 0.0, 11.0};
     private static final long DAY = 2000L, NIGHT = 18000L;
 
     private static final Shot[] SHOTS = {
@@ -103,6 +104,9 @@ final class AutoShot {
             new Shot("33_day_partial_closeup", DAY, false, true, false, 0, CLOSE, CLOSE_T),
             new Shot("34_night_partial_closeup", NIGHT, false, true, false, 0, CLOSE, CLOSE_T),
             new Shot("35_night_partial_closeup_vanilla", NIGHT, false, false, false, 0, CLOSE, CLOSE_T),
+            new Shot("36_day_partial_top_debug_direct", DAY, false, true, false, 1, TOP, TOP_T),
+            new Shot("37_night_partial_top_debug_direct", NIGHT, false, true, false, 1, TOP, TOP_T),
+            new Shot("38_day_partial_top_normals", DAY, false, true, false, 3, TOP, TOP_T),
     };
 
     private int index = -1;          // -1 = not in a world yet
