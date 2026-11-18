@@ -462,6 +462,9 @@ final class PathTraceRenderer {
         bindRaw(9, lightGrid.cellTexture());
         s.set("lightTex", 8);
         s.set("cellTex", 9);
+        if (lightGrid.residualTexture() > 0) bindRaw(14, lightGrid.residualTexture());
+        s.set("residTex", 14);
+        s.set("residTexH", lightGrid.residualTexHeight());
         s.set("gridOrigin", (float) (lightGrid.ox - volume.originX()), (float) (lightGrid.oy - volume.originY()),
                 (float) (lightGrid.oz - volume.originZ()));
         s.set("gridCells", (float) lightGrid.gx, (float) lightGrid.gy, (float) lightGrid.gz);

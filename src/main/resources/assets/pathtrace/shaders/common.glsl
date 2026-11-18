@@ -24,6 +24,8 @@ uniform vec3 gridOrigin;      // volume space
 uniform vec3 gridCells;
 uniform vec2 lightTexSize;
 uniform vec2 cellTexSize;
+uniform sampler2D residTex;
+uniform float residTexH;   // 8 texels per cell: light of the lights that didn't fit in its list, at its corners
 #define GRID_CELL 8.0
 #define MAX_DYN 16
 uniform vec4 dynLightPos[MAX_DYN];   // xyz position, w radius
@@ -386,6 +388,7 @@ void feedRem(float w, vec4 lp, vec3 c, vec3 blk) {
     if (rand() * g_remTotal < w) { g_remPick = lp; g_remCell = blk; }
 }
 
+const float LIGHT_FALLOFF = 0.18;
 // lp.w = how far the light reaches here: its full range, or less where lights are crowded
 // (the light grid shrinks it so no list overflows). `range` = its full range.
 // The light's shape never depends on lp.w except for a smooth fade to zero at the end,
@@ -403,7 +406,7 @@ float lightTerm(vec4 lp, vec3 lc, float range, vec3 p, vec3 n, out vec3 contrib)
     float wrap = (ndl + 0.25) / 1.25;      // block light spreads a little past grazing angles, like vanilla
     float fade = 1.0;
     if (lp.w < range - 0.01) { float q = d2 / (lp.w * lp.w); fade = (1.0 - q) * (1.0 - q); }
-    contrib = lc * (wrap * x * x * fade / (1.0 + 0.3 * fd * fd));
+    contrib = lc * (wrap * x * x * fade / (1.0 + LIGHT_FALLOFF * fd * fd));   // LightGrid.FALLOFF
     return luminance(contrib);
 }
 
@@ -458,6 +461,10 @@ void visitLight(vec4 lp, vec4 lcw, vec3 p, vec3 n) {
 }
 
 float g_visited;   // lights the cell list gave us (debug)
+vec3 g_resid;      // light added back for lights that didn't fit in the cell's list
+vec4 residAt(float t) {
+    return texture2D(residTex, (vec2(mod(t, cellTexSize.x), floor(t / cellTexSize.x)) + 0.5) / vec2(cellTexSize.x, residTexH));
+}
 bool visitIndex(float idx, vec3 p, vec3 n) {
     if (idx < 0.0) return false;
     g_visited += 1.0;
@@ -471,6 +478,7 @@ bool visitIndex(float idx, vec3 p, vec3 n) {
 
 void visitLights(vec3 p, vec3 n) {
     g_visited = 0.0;
+    g_resid = vec3(0.0);
     g_remSum = vec3(0.0); g_remTotal = 0.0; g_remPick = vec4(0.0); g_remCell = vec3(-1.0e9);
     g_sum = vec3(0.0); g_total = 0.0; g_pick = vec4(0.0); g_pickCell = vec3(-1.0e9); g_glow = vec3(0.0);
     g_topB0 = vec3(-1.0e9); g_topB1 = vec3(-1.0e9); g_topB2 = vec3(-1.0e9); g_topB3 = vec3(-1.0e9);
@@ -492,6 +500,17 @@ void visitLights(vec3 p, vec3 n) {
         if (!visitIndex(ids.z, p, n)) return;
         if (!visitIndex(ids.w, p, n)) return;
     }
+    // the list was full: add back the lights that didn't fit (smooth, no shadows, no normal)
+    vec4 r0 = residAt(cell * 8.0);
+    if (r0.w <= 0.0) return;
+    vec3 f = fract((p - gridOrigin) / GRID_CELL);
+    vec3 r = mix(mix(mix(r0.rgb, residAt(cell * 8.0 + 1.0).rgb, f.x),
+                     mix(residAt(cell * 8.0 + 2.0).rgb, residAt(cell * 8.0 + 3.0).rgb, f.x), f.y),
+                 mix(mix(residAt(cell * 8.0 + 4.0).rgb, residAt(cell * 8.0 + 5.0).rgb, f.x),
+                     mix(residAt(cell * 8.0 + 6.0).rgb, residAt(cell * 8.0 + 7.0).rgb, f.x), f.y), f.z);
+    g_resid = r;
+    g_sum += r;
+    g_total += luminance(r);
 }
 
 // Many lights close together: vanilla takes the brightest, a plain sum blows out. The sum is

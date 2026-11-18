@@ -33,6 +33,7 @@ vec3 remainingLights(vec3 P, vec3 N, vec3 origin) {
     g_wantRem = false;
     // lights beyond shadowedLights are top-4 members direct.fsh doesn't shadow: they're ours too
     vec3 sum = g_remSum;
+    vec3 resid = g_resid;
     float scale = g_lightScale;
     vec3 extra = vec3(0.0);
     if (shadowedLights < 4 && g_topW3 > 0.0) extra += g_topC3 * lightVisible(origin, lightTarget(origin, g_topP3.xyz, g_topB3, vec3(0.0)), g_topB3);
@@ -44,7 +45,7 @@ vec3 remainingLights(vec3 P, vec3 N, vec3 origin) {
         vec3 target = lightTarget(origin, g_remPick.xyz, g_remCell, (vec3(rand(), rand(), rand()) - 0.5) * 0.6);
         rem = sum * lightVisible(origin, target, g_remCell);
     }
-    return (rem + extra) * scale;
+    return (rem + extra + resid) * scale;
 }
 
 void main() {
