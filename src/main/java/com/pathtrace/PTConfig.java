@@ -73,8 +73,8 @@ public class PTConfig {
     @Config.Comment("Shadows beyond the detailed 128-block grid, from a 1-block grid out to the render distance.")
     public static boolean lodShadows = true;
 
-    @Config.Comment("Debug view: 0 = normal, 1 = direct light only, 2 = bounce/sky light only, 3 = surface normals.")
-    @Config.RangeInt(min = 0, max = 3)
+    @Config.Comment("Debug view: 0 = normal, 1 = direct light only, 2 = bounce/sky light only, 3 = surface normals, 4 = ray diagnostics, 5 = light-list fill.")
+    @Config.RangeInt(min = 0, max = 5)
     public static int debugView = 0;
 
     @Config.Comment("Voxel slices re-scanned per frame as a background safety net (block changes are picked up instantly anyway).")

@@ -428,8 +428,10 @@ void visitLight(vec4 lp, vec4 lcw, vec3 p, vec3 n) {
     }
 }
 
+float g_visited;   // lights the cell list gave us (debug)
 bool visitIndex(float idx, vec3 p, vec3 n) {
     if (idx < 0.0) return false;
+    g_visited += 1.0;
     vec2 base = vec2(mod(idx, 128.0) * 2.0, floor(idx / 128.0));
     vec4 lp = texture2D(lightTex, (base + 0.5) / lightTexSize);
     vec4 lcw = texture2D(lightTex, (base + vec2(1.5, 0.5)) / lightTexSize);
@@ -439,6 +441,7 @@ bool visitIndex(float idx, vec3 p, vec3 n) {
 }
 
 void visitLights(vec3 p, vec3 n) {
+    g_visited = 0.0;
     g_sum = vec3(0.0); g_total = 0.0; g_pick = vec4(0.0); g_pickCell = vec3(-1.0e9); g_glow = vec3(0.0);
     g_topB0 = vec3(-1.0e9); g_topB1 = vec3(-1.0e9); g_topB2 = vec3(-1.0e9); g_topB3 = vec3(-1.0e9);
     g_topW0 = 0.0; g_topW1 = 0.0; g_topW2 = 0.0; g_topW3 = 0.0;

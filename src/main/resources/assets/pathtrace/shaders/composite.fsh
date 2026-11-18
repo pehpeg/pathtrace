@@ -64,6 +64,10 @@ void main() {
         gl_FragColor = vec4(pow(l, vec3(1.0 / 2.2)), 1.0);
         return;
     }
+    if (debugView == 4 || debugView == 5) {
+        gl_FragColor = vec4(dir, 1.0);
+        return;
+    }
     if (debugView == 3) {
         gl_FragColor = vec4(texture2D(geomTex, uv).xyz * 0.5 + 0.5, 1.0);
         return;

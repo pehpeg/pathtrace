@@ -82,7 +82,18 @@ final class AutoShot {
     private static final double[] GLOWROOM = {43.5, 0.0, 3.5}, GLOWROOM_T = {46.5, 1.0, 7.5};
     private static final long DAY = 2000L, NIGHT = 18000L;
 
-    private static final Shot[] SHOTS = {
+    // a big stone-brick hall like a real base: glowstone set into the walls every few blocks,
+    // a glowstone strip over a row of wall signs, chests sunk into the floor, a long corridor
+    private static final double[] HALL = {63.0, 0.0, 12.0}, HALL_T = {72.0, 0.5, 22.0};
+    private static final double[] PIT = {71.0, 0.0, 18.5}, PIT_T = {71.0, -0.8, 21.5};
+    private static final double[] SIGNS = {68.0, 0.0, 19.0}, SIGNS_T = {68.0, 2.5, 23.0};
+    private static final double[] CORRIDOR = {85.5, 0.0, 12.5}, CORRIDOR_T = {110.0, 1.0, 12.5};
+
+    /** While iterating on one problem: only take the shots from FOCUS_FROM on. */
+    private static final boolean FOCUS = true;
+    private static final String FOCUS_FROM = "52";
+
+    private static final Shot[] SHOTS = filter(new Shot[] {
             new Shot("01_day_pathtrace", DAY, false, true, false, 0, OUTSIDE, OUTSIDE_T),
             new Shot("02_day_vanilla", DAY, false, false, false, 0, OUTSIDE, OUTSIDE_T),
             new Shot("03_day_debug_direct", DAY, false, true, false, 1, OUTSIDE, OUTSIDE_T),
@@ -134,7 +145,32 @@ final class AutoShot {
             new Shot("49_night_glowroom_vanilla", NIGHT, false, false, false, 0, GLOWROOM, GLOWROOM_T),
             new Shot("50_night_glowroom_debug_direct", NIGHT, false, true, false, 1, GLOWROOM, GLOWROOM_T),
             new Shot("51_night_glowroom_debug_bounce", NIGHT, false, true, false, 2, GLOWROOM, GLOWROOM_T),
-    };
+            new Shot("52_hall_pathtrace", NIGHT, true, true, false, 0, HALL, HALL_T),
+            new Shot("53_hall_vanilla", NIGHT, true, false, false, 0, HALL, HALL_T),
+            new Shot("54_hall_debug_direct", NIGHT, true, true, false, 1, HALL, HALL_T),
+            new Shot("55_hall_debug_bounce", NIGHT, true, true, false, 2, HALL, HALL_T),
+            new Shot("56_hall_debug_lightcount", NIGHT, true, true, false, 5, HALL, HALL_T),
+            new Shot("57_pit_pathtrace", NIGHT, true, true, false, 0, PIT, PIT_T),
+            new Shot("58_pit_vanilla", NIGHT, true, false, false, 0, PIT, PIT_T),
+            new Shot("59_pit_debug_direct", NIGHT, true, true, false, 1, PIT, PIT_T),
+            new Shot("60_pit_debug_bounce", NIGHT, true, true, false, 2, PIT, PIT_T),
+            new Shot("61_pit_debug_rays", NIGHT, true, true, false, 4, PIT, PIT_T),
+            new Shot("62_signs_pathtrace", NIGHT, true, true, false, 0, SIGNS, SIGNS_T),
+            new Shot("63_signs_vanilla", NIGHT, true, false, false, 0, SIGNS, SIGNS_T),
+            new Shot("64_signs_debug_direct", NIGHT, true, true, false, 1, SIGNS, SIGNS_T),
+            new Shot("65_corridor_pathtrace", NIGHT, true, true, false, 0, CORRIDOR, CORRIDOR_T),
+            new Shot("66_corridor_vanilla", NIGHT, true, false, false, 0, CORRIDOR, CORRIDOR_T),
+            new Shot("67_corridor_debug_direct", NIGHT, true, true, false, 1, CORRIDOR, CORRIDOR_T),
+            new Shot("68_corridor_debug_lightcount", NIGHT, true, true, false, 5, CORRIDOR, CORRIDOR_T),
+    });
+
+    private static Shot[] filter(Shot[] all) {
+        if (!FOCUS) return all;
+        java.util.List<Shot> keep = new java.util.ArrayList<>();
+        for (Shot s : all) if (s.name.compareTo(FOCUS_FROM) >= 0) keep.add(s);
+        return keep.toArray(new Shot[0]);
+    }
+
 
     private int index = -1;          // -1 = not in a world yet
     private boolean started;
@@ -308,6 +344,7 @@ final class AutoShot {
         set(w, b, 43, 0, 2, Blocks.AIR.getDefaultState());
         set(w, b, 43, 1, 2, Blocks.AIR.getDefaultState());
         for (int y = 0; y <= 3; y++) set(w, b, 45, y, 5, Blocks.STONEBRICK.getDefaultState());
+        buildHall(w, b);
         // far away: a torch with a pillar next to it
         set(w, b, -8, 0, 80, Blocks.TORCH.getDefaultState());
         for (int y = 0; y <= 2; y++) set(w, b, -6, y, 80, Blocks.COBBLESTONE.getDefaultState());
@@ -315,6 +352,56 @@ final class AutoShot {
 
     private static IBlockState glass(EnumDyeColor c) {
         return Blocks.STAINED_GLASS.getDefaultState().withProperty(BlockStainedGlass.COLOR, c);
+    }
+
+    private static void buildHall(WorldServer w, BlockPos b) {
+        IBlockState brick = Blocks.STONEBRICK.getDefaultState(), glow = Blocks.GLOWSTONE.getDefaultState();
+        IBlockState air = Blocks.AIR.getDefaultState();
+        int x0 = 60, x1 = 84, z0 = 0, z1 = 24, top = 8;
+        for (int x = x0; x <= x1; x++)
+            for (int z = z0; z <= z1; z++)
+                for (int y = 0; y <= top; y++) {
+                    boolean wall = x == x0 || x == x1 || z == z0 || z == z1;
+                    if (y == top) set(w, b, x, y, z, ((x % 4 == 0) && (z % 4 == 0)) ? glow : brick);
+                    else if (wall) set(w, b, x, y, z, ((y == 2 || y == 5) && ((x + z) % 3 == 0)) ? glow : brick);
+                    else set(w, b, x, y, z, air);
+                }
+        // north wall: a strip of glowstone over a row of wall signs, workstations below
+        for (int x = 63; x <= 77; x++) {
+            set(w, b, x, 3, z1, glow);
+            set(w, b, x, 2, z1, brick);
+            set(w, b, x, 2, z1 - 1, Blocks.WALL_SIGN.getDefaultState().withProperty(BlockWallSign.FACING, EnumFacing.NORTH));
+        }
+        set(w, b, 64, 0, 23, Blocks.FURNACE.getDefaultState());
+        set(w, b, 65, 0, 23, Blocks.FURNACE.getDefaultState());
+        set(w, b, 66, 0, 23, Blocks.CRAFTING_TABLE.getDefaultState());
+        set(w, b, 67, 0, 23, Blocks.CHEST.getDefaultState().withProperty(BlockChest.FACING, EnumFacing.NORTH));
+        set(w, b, 68, 0, 23, Blocks.CHEST.getDefaultState().withProperty(BlockChest.FACING, EnumFacing.NORTH));
+        set(w, b, 70, 0, 23, Blocks.ENCHANTING_TABLE.getDefaultState());
+        set(w, b, 72, 0, 23, Blocks.ANVIL.getDefaultState());
+        set(w, b, 73, 0, 23, Blocks.ENDER_CHEST.getDefaultState());
+        // a trench in the floor with chests sunk into it (their lids below floor level)
+        for (int x = 64; x <= 77; x++) {
+            set(w, b, x, -1, 21, (x % 2 == 0) ? Blocks.CHEST.getDefaultState().withProperty(BlockChest.FACING, EnumFacing.NORTH)
+                                              : Blocks.TRAPPED_CHEST.getDefaultState().withProperty(BlockChest.FACING, EnumFacing.NORTH));
+            set(w, b, x, -1, 20, air);
+        }
+        set(w, b, 71, -1, 19, Blocks.CHEST.getDefaultState());
+        set(w, b, 70, 0, 18, Blocks.STANDING_SIGN.getDefaultState());
+        // a wooden staircase against the west wall, like a real base
+        for (int i = 0; i < 6; i++) set(w, b, 61, i, 6 + i, Blocks.OAK_STAIRS.getDefaultState()
+                .withProperty(net.minecraft.block.BlockStairs.FACING, EnumFacing.SOUTH));
+        // doorway east into a long corridor lit by glowstone in both walls
+        for (int y = 0; y <= 2; y++) for (int z = 11; z <= 13; z++) set(w, b, x1, y, z, air);
+        for (int x = x1 + 1; x <= 112; x++)
+            for (int z = 10; z <= 14; z++)
+                for (int y = 0; y <= 4; y++) {
+                    boolean shell = z == 10 || z == 14 || y == 4;
+                    if (!shell) { set(w, b, x, y, z, air); continue; }
+                    boolean g = (z != 12 || y != 4) && y >= 1 && y <= 3 && ((x + y) % 4 == 0);
+                    set(w, b, x, y, z, g ? glow : brick);
+                }
+        for (int z = 10; z <= 14; z++) for (int y = 0; y <= 4; y++) set(w, b, 113, y, z, brick);
     }
 
     private static void set(WorldServer w, BlockPos b, int x, int y, int z, IBlockState s) {

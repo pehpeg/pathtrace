@@ -15,6 +15,7 @@ varying vec2 uv;
 
 uniform int shadowedLights;
 uniform float pixelShadows;
+uniform int debugView;
 
 vec3 sunVisibilityHard(vec3 p) {
     vec3 hc; vec3 hn; float t;
@@ -84,5 +85,25 @@ void main() {
                             + slot(g_topW2, g_topP2, g_topC2, g_topB2, origin)
                             + slot(g_topW3, g_topP3, g_topC3, g_topB3, origin));
 
+    if (debugView == 4) {
+        // r: a ray straight out of the surface is blocked right away (should never happen)
+        // g: the surface's own block is a non-full shape;  b: share of the top lights that are visible
+        vec3 hc; vec3 hn; float t;
+        g_trans = vec3(1.0);
+        float r = traceRay(origin, N, 3.0, hc, hn, t);
+        float blockedNow = (r > 0.5 && r < 1.5 && t < 0.3) ? 1.0 : 0.0;
+        float partial = (ownInGrid && isSolid(fetchVoxel(own)) && shapeIdAt(own) > 0.5) ? 1.0 : 0.0;
+        float n = 0.0, v = 0.0;
+        if (g_topW0 > 0.0) { n += 1.0; v += luminance(lightVisible(origin, lightTarget(origin, g_topP0.xyz, g_topB0, vec3(0.0)), g_topB0)); }
+        if (g_topW1 > 0.0) { n += 1.0; v += luminance(lightVisible(origin, lightTarget(origin, g_topP1.xyz, g_topB1, vec3(0.0)), g_topB1)); }
+        gl_FragColor = vec4(blockedNow, partial * 0.6, n > 0.0 ? v / n : 0.0, glow);
+        return;
+    }
+    if (debugView == 5) {
+        // lights the light-grid cell offers here (red = list full, so some lights are cut off)
+        float full = g_visited >= 16.0 ? 1.0 : 0.0;
+        gl_FragColor = vec4(full, g_visited / 16.0 * (1.0 - full), g_lightScale < 0.999 ? 0.5 : 0.0, glow);
+        return;
+    }
     gl_FragColor = vec4(min(sane(direct), vec3(32.0)), glow);
 }

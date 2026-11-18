@@ -265,6 +265,7 @@ final class PathTraceRenderer {
         directSh.setMatrix("invView", invView);
         directSh.set("depthTexel", 1f / width, 1f / height);
         directSh.set("shadowedLights", PTConfig.shadowedLights);
+        directSh.set("debugView", PTConfig.debugView);
         directSh.set("pixelShadows", PTConfig.pixelShadows ? 1f : 0f);
         drawQuad();
         int dirTex = direct.tex[0];
