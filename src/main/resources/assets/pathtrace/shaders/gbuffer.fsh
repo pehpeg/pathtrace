@@ -22,8 +22,12 @@ void main() {
     float depthDist = length(rel - eye);
     vec3 ro = camPos + eye;
 
+    // Everything between the eye and the depth-buffer surface is known to be empty, so start the
+    // ray just before that surface instead of marching all the way from the eye.
+    float t0 = max(depthDist - 1.5, 0.0);
     vec3 hc; vec3 hn; float t;
-    float r = traceRay(ro, dir, depthDist + 2.0, hc, hn, t);
+    float r = traceRay(ro + dir * t0, dir, 3.5, hc, hn, t);
+    t += t0;
     // Only full blocks: a non-full block's shape is only approximately its model, and trusting it
     // would put phantom surfaces next to thin things (fences, bars...) and on the ground under them.
     bool fullHit = false;
