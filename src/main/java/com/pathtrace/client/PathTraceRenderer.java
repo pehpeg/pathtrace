@@ -145,9 +145,12 @@ final class PathTraceRenderer {
         double cy = cam.lastTickPosY + (cam.posY - cam.lastTickPosY) * pt;
         double cz = cam.lastTickPosZ + (cam.posZ - cam.lastTickPosZ) * pt;
 
-        perf.cpuBegin("voxels");
+        volume.uploadNanos = 0;
+        long vt0 = System.nanoTime();
         volume.update(world, cx, cy, cz);
-        perf.cpuEnd();
+        long vt = System.nanoTime() - vt0;
+        perf.cpuAdd("voxels", (vt - volume.uploadNanos) / 1.0e6);
+        perf.cpuAdd("voxUpload", volume.uploadNanos / 1.0e6);
         if (!volume.isValid()) {
             hasHistory = false;
             return;

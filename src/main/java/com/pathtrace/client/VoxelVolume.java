@@ -437,7 +437,16 @@ final class VoxelVolume {
         setUnpack(0, 0, 0, 0, 0, 4);
     }
 
+    /** Time spent in texture uploads (reported separately by /pathtrace perf), reset by the renderer. */
+    long uploadNanos;
+
     private void uploadVoxelBox(int x, int y, int z, int w, int h, int d) {
+        long t0 = System.nanoTime();
+        uploadVoxelBoxGL(x, y, z, w, h, d);
+        uploadNanos += System.nanoTime() - t0;
+    }
+
+    private void uploadVoxelBoxGL(int x, int y, int z, int w, int h, int d) {
         ByteBuffer b = voxels.duplicate();
         b.clear();
         GL11.glBindTexture(GL12.GL_TEXTURE_3D, tex3d);
@@ -452,6 +461,12 @@ final class VoxelVolume {
     }
 
     private void uploadCoarseBox(int x, int y, int z, int w, int h, int d) {
+        long t0 = System.nanoTime();
+        uploadCoarseBoxGL(x, y, z, w, h, d);
+        uploadNanos += System.nanoTime() - t0;
+    }
+
+    private void uploadCoarseBoxGL(int x, int y, int z, int w, int h, int d) {
         ByteBuffer b = coarse.duplicate();
         b.clear();
         GL11.glBindTexture(GL12.GL_TEXTURE_3D, coarseTex);

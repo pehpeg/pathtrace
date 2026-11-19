@@ -77,6 +77,11 @@ final class PerfStats {
         GL33.glQueryCounter(queries[slot][i], GL33.GL_TIMESTAMP);
     }
 
+    /** Bill a measured duration to a CPU step directly. */
+    void cpuAdd(String name, double ms) {
+        add(cpuAvg, name, ms);
+    }
+
     void cpuBegin(String name) {
         cpuName = name;
         cpuStart = System.nanoTime();
