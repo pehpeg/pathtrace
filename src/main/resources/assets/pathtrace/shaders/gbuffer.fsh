@@ -33,6 +33,19 @@ void main() {
     float depthDist = length(rel - eye);
     vec3 ro = camPos + eye;
 
+    // Water: its surface is in the depth buffer, but lighting it like solid ground makes lakes and the
+    // sea glow bright blue. Light the bottom under it instead: light reaching the bottom passes through
+    // the water (absorbed per block), so deep water ends up dark and shallow water bright.
+    vec3 wc = floor(ro + dir * (depthDist + 0.05));
+    if (insideVolume(wc) && isWater(fetchVoxel(wc))) {
+        vec3 hcw; vec3 hnw; float tw;
+        float rw = traceRay(ro + dir * (depthDist + 0.02), dir, 64.0, hcw, hnw, tw);
+        if (rw > 0.5 && rw < 1.5) {
+            gl_FragColor = vec4(hnw, depthDist + 0.02 + tw);
+            return;
+        }
+    }
+
     // Everything between the eye and the depth-buffer surface is known to be empty, so start the
     // ray just before that surface instead of marching all the way from the eye.
     float t0 = max(depthDist - 1.5, 0.0);

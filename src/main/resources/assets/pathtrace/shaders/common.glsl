@@ -79,6 +79,10 @@ bool isTint(vec4 v) {
     return v.a > 0.2 && v.a < 0.499;
 }
 
+bool isWater(vec4 v) {
+    return v.a > 0.33 && v.a < 0.499;   // A = 96
+}
+
 vec3 glassTint(vec4 v) {
     vec3 c = pow(v.rgb, vec3(2.2));
     if (v.a > 0.33) return c;   // water (A = 96): rgb is the light left after one block
