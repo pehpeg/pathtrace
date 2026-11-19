@@ -37,7 +37,7 @@ The jar is written to `build/libs/pathtrace-<version>.jar`. Ignore the `-dev` an
 | `/pathtrace set <setting> <value>` | Change any setting below (saved to the config); tab completes |
 | `/pathtrace get <setting>` | Show a setting's value |
 | `/pathtrace reload` | Reload shaders |
-| `/pathtrace preset fast\|balanced\|quality\|ultra` | Set the performance-related settings in one go (`balanced` is the default) |
+| `/pathtrace preset potato\|fast\|balanced\|quality\|ultra` | Set the performance-related settings in one go (`balanced` is the default) |
 | `/pathtrace perf` | Where the frame time goes: GPU milliseconds per pass, CPU milliseconds per step |
 
 The same on/off and reload actions can be bound to keys under Controls → PathTrace (unbound by default).
