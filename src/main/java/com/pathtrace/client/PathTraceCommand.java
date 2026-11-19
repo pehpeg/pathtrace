@@ -39,7 +39,7 @@ final class PathTraceCommand extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/pathtrace <on|off|toggle|status|reload|perf|preset <fast|balanced|quality|ultra>|set <setting> <value>|get <setting>>";
+        return "/pathtrace <on|off|toggle|status|reload|perf|preset <potato|fast|balanced|quality|ultra>|set <setting> <value>|get <setting>>";
     }
 
     @Override
@@ -85,14 +85,15 @@ final class PathTraceCommand extends CommandBase {
                 say(sender, "§7(averaged over the last ~20 frames; the 'vanilla' entry is Minecraft's own work between our passes)");
                 break;
             case "preset": {
-                if (args.length < 2) throw new WrongUsageException("/pathtrace preset <fast|balanced|quality|ultra>");
+                if (args.length < 2) throw new WrongUsageException("/pathtrace preset <potato|fast|balanced|quality|ultra>");
                 String p = args[1].toLowerCase();
                 switch (p) {
-                    case "fast":     preset(0.4, 0.4, 1, 1); break;
-                    case "balanced": preset(0.5, 0.5, 3, 1); break;
-                    case "quality":  preset(0.5, 1.0, 4, 1); break;
-                    case "ultra":    preset(0.75, 1.0, 4, 2); break;
-                    default: throw new WrongUsageException("/pathtrace preset <fast|balanced|quality|ultra>");
+                    case "potato":   preset(0.25, 0.25, 1, 1, 1); break;
+                    case "fast":     preset(0.33, 0.33, 1, 1, 1); break;
+                    case "balanced": preset(0.5, 0.5, 3, 1, 2); break;
+                    case "quality":  preset(0.5, 1.0, 4, 1, 2); break;
+                    case "ultra":    preset(0.75, 1.0, 4, 2, 2); break;
+                    default: throw new WrongUsageException("/pathtrace preset <potato|fast|balanced|quality|ultra>");
                 }
                 ConfigManager.sync(PathTraceMod.MODID, Config.Type.INSTANCE);
                 ClientHandler.resetHistory();
@@ -150,7 +151,8 @@ final class PathTraceCommand extends CommandBase {
         }
     }
 
-    private static void preset(double renderScale, double directScale, int shadowed, int bounces) {
+    private static void preset(double renderScale, double directScale, int shadowed, int bounces, int samples) {
+        PTConfig.lightSamples = samples;
         PTConfig.renderScale = renderScale;
         PTConfig.directScale = directScale;
         PTConfig.shadowedLights = shadowed;
@@ -178,7 +180,7 @@ final class PathTraceCommand extends CommandBase {
             return getListOfStringsMatchingLastWord(args, "on", "off", "toggle", "status", "reload", "set", "get", "perf", "preset");
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("preset")) {
-            return getListOfStringsMatchingLastWord(args, "fast", "balanced", "quality", "ultra");
+            return getListOfStringsMatchingLastWord(args, "potato", "fast", "balanced", "quality", "ultra");
         }
         if (args.length == 2 && (args[0].equalsIgnoreCase("set") || args[0].equalsIgnoreCase("get"))) {
             return getListOfStringsMatchingLastWord(args, settingNames());

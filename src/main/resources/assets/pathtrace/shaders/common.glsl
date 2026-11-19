@@ -433,38 +433,30 @@ vec3 lightBlock(vec3 lp, float code) {
     return floor(l > 0.5 ? lp - o / l * LIGHT_PUSH : lp);
 }
 
-// Does any open face (mask bit i = EnumFacing i: down, up, north, south, west, east) look towards p?
-bool facesToward(float mask, vec3 blk, vec3 p) {
+// A glowing block shines from its open faces (mask bit i = EnumFacing i: down, up, north, south,
+// west, east). Of those that look towards p, take the one facing it most directly and light p from
+// just outside it (from the block's middle, a glowstone set into a wall would sit behind the wall
+// around it). Returns false if every open face looks away from p (light culling).
+bool faceLight(float mask, vec3 blk, vec3 p, inout vec3 pos) {
     vec3 d = p - (blk + 0.5);
     float m = mask;
-    if (mod(m, 2.0) > 0.5 && d.y < -0.45) return true; m = floor(m / 2.0);
-    if (mod(m, 2.0) > 0.5 && d.y >  0.45) return true; m = floor(m / 2.0);
-    if (mod(m, 2.0) > 0.5 && d.z < -0.45) return true; m = floor(m / 2.0);
-    if (mod(m, 2.0) > 0.5 && d.z >  0.45) return true; m = floor(m / 2.0);
-    if (mod(m, 2.0) > 0.5 && d.x < -0.45) return true; m = floor(m / 2.0);
-    if (mod(m, 2.0) > 0.5 && d.x >  0.45) return true;
-    return false;
-}
-
-// A glowing block shines from its open faces: light p from just outside the open face that looks at it
-// most directly. (From the block's middle, a glowstone set into a wall would sit behind the wall
-// around it, and the wall next to it would get no light at all.)
-vec3 faceLightPos(float mask, vec3 blk, vec3 p) {
-    vec3 c = blk + 0.5;
-    vec3 d = p - c;
-    float best = -1.0e9;
-    vec3 bn = vec3(0.0);
-    float m = mask;
-    for (int i = 0; i < 6; i++) {
-        vec3 fn = i == 0 ? vec3(0.0, -1.0, 0.0) : i == 1 ? vec3(0.0, 1.0, 0.0) : i == 2 ? vec3(0.0, 0.0, -1.0)
-                : i == 3 ? vec3(0.0, 0.0, 1.0) : i == 4 ? vec3(-1.0, 0.0, 0.0) : vec3(1.0, 0.0, 0.0);
-        if (mod(m, 2.0) > 0.5) {
-            float s = dot(d, fn);
-            if (s > best) { best = s; bn = fn; }
-        }
-        m = floor(m / 2.0);
-    }
-    return c + bn * LIGHT_PUSH;
+    float bD = mod(m, 2.0); m = floor(m * 0.5);
+    float bU = mod(m, 2.0); m = floor(m * 0.5);
+    float bN = mod(m, 2.0); m = floor(m * 0.5);
+    float bS = mod(m, 2.0); m = floor(m * 0.5);
+    float bW = mod(m, 2.0); m = floor(m * 0.5);
+    float bE = mod(m, 2.0);
+    // score of each face = how far p is in front of it; disabled faces get -1e9
+    vec3 neg = vec3(bW, bD, bN) * (-d) + (1.0 - vec3(bW, bD, bN)) * -1.0e9;
+    vec3 posS = vec3(bE, bU, bS) * d + (1.0 - vec3(bE, bU, bS)) * -1.0e9;
+    vec3 best3 = max(neg, posS);
+    float best = max(best3.x, max(best3.y, best3.z));
+    if (best <= 0.45) return false;
+    vec3 fn = best3.x >= best ? vec3(posS.x >= neg.x ? 1.0 : -1.0, 0.0, 0.0)
+            : (best3.y >= best ? vec3(0.0, posS.y >= neg.y ? 1.0 : -1.0, 0.0)
+                               : vec3(0.0, 0.0, posS.z >= neg.z ? 1.0 : -1.0));
+    pos = blk + 0.5 + fn * LIGHT_PUSH;
+    return true;
 }
 
 void visitLight(vec4 lp, vec4 lcw, vec3 p, vec3 n) {
@@ -480,8 +472,11 @@ void visitLight(vec4 lp, vec4 lcw, vec3 p, vec3 n) {
     }
     vec3 c;
     float faces = lightFaces(lcw.w);
-    if (faces > 0.5 && !facesToward(faces, blk, p)) return;   // all its open faces look away from p
-    if (faces > 0.5) lp.xyz = faceLightPos(faces, blk, p);
+    if (faces > 0.5) {
+        vec3 fp = lp.xyz;
+        if (!faceLight(faces, blk, p, fp)) return;   // all its open faces look away from p
+        lp.xyz = fp;
+    }
     float w = lightTerm(lp, lc, range, p, n, c);
     lp.w = faces;   // from here on lp.w carries the open-face mask (for lightTarget)
     if (w <= 0.0) return;
@@ -523,8 +518,9 @@ vec3 residualAt(float cell, vec3 p) {
                mix(mix(residAt(cell * 8.0 + 4.0).rgb, residAt(cell * 8.0 + 5.0).rgb, f.x),
                    mix(residAt(cell * 8.0 + 6.0).rgb, residAt(cell * 8.0 + 7.0).rgb, f.x), f.y), f.z);
 }
+uniform float listLimit;   // visit at most this many list entries (lists are sorted strongest first)
 bool visitIndex(float idx, vec3 p, vec3 n) {
-    if (idx < 0.0) return false;
+    if (idx < 0.0 || g_visited >= listLimit) return false;
     g_visited += 1.0;
     g_curIdx = idx;
     vec2 base = vec2(mod(idx, 128.0) * 2.0, floor(idx / 128.0));
@@ -681,8 +677,11 @@ vec3 oneLight(float which, vec3 p, vec3 n, vec3 origin) {
     fetchLight(which, lp, lcw);
     vec3 blk = lightBlock(lp.xyz, lightCode(lcw.w));
     float faces = lightFaces(lcw.w);
-    if (faces > 0.5 && !facesToward(faces, blk, p)) return vec3(0.0);
-    if (faces > 0.5) lp.xyz = faceLightPos(faces, blk, p);
+    if (faces > 0.5) {
+        vec3 fp = lp.xyz;
+        if (!faceLight(faces, blk, p, fp)) return vec3(0.0);
+        lp.xyz = fp;
+    }
     vec3 c;
     float w = lightTerm(lp, lcw.rgb, lightRange(lp, lcw.w), p, n, c);
     if (w <= 0.0) return vec3(0.0);

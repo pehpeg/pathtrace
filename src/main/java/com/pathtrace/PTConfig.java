@@ -23,6 +23,10 @@ public class PTConfig {
     @Config.Comment("Trace new bounce light for half the pixels each frame (alternating); the rest reuse last frame's. About halves the tracer's cost.")
     public static boolean checkerboard = true;
 
+    @Config.Comment("Weaker lights (all but the shadowedLights strongest) sampled per pixel per frame, with a shadow ray each. 1 = faster, 2 = less noise.")
+    @Config.RangeInt(min = 1, max = 2)
+    public static int lightSamples = 2;
+
     @Config.Comment("Frames averaged for bounce/sky light. Higher = smoother, slower to react to changes.")
     @Config.RangeInt(min = 1, max = 256)
     public static int maxAccumulation = 32;

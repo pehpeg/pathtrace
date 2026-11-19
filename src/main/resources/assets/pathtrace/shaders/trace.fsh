@@ -22,6 +22,7 @@ uniform float maxAccumIndirect;
 uniform int bounces;
 uniform vec2 traceRes;
 uniform float checkerboard;
+uniform int lightSamples;   // 1 or 2 random lights per pixel for the weaker lights
 
 uniform sampler2D directTopTex;   // from direct.fsh: the lights it shadowed exactly at this pixel
 uniform sampler2D directAuxTex;   // r = crowding factor
@@ -34,7 +35,7 @@ vec3 remainingLights(vec3 P, vec3 N, vec3 origin) {
     float scale = texture2D(directAuxTex, uv).r;
     if (scale <= 0.0) return vec3(0.0);
     vec3 resid;
-    vec3 s = sampleLights(P, N, origin, top, 2, resid);
+    vec3 s = sampleLights(P, N, origin, top, lightSamples, resid);
     return (s + resid) * scale;
 }
 
@@ -83,7 +84,10 @@ void main() {
 
     // Checkerboard: each frame only half the pixels trace new samples; the others keep their
     // reprojected history (when it is valid), so the tracer costs about half.
-    if (checkerboard > 0.5 && wsum > 0.05 && mod(floor(gl_FragCoord.x) + floor(gl_FragCoord.y) + frame, 2.0) > 0.5) {
+    // (in 8x8-pixel tiles, not single pixels: GPUs run pixels in groups, and a group only finishes
+    // when its slowest pixel does, so skipping every other pixel saved nothing)
+    vec2 tile = floor(gl_FragCoord.xy / 8.0);
+    if (checkerboard > 0.5 && wsum > 0.05 && mod(tile.x + tile.y + frame, 2.0) > 0.5) {
         vec4 h = histI / wsum;
         gl_FragData[0] = vec4(sane(h.rgb), h.a);
         gl_FragData[1] = vec4(N, dist);
