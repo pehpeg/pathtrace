@@ -1,0 +1,509 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.9/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :downloadAssetManifest SKIPPED
+> Task :downloadVanillaAssets
+> Task :extractNatives2
+> Task :extractDependencyATs SKIPPED
+> Task :generateForgeSrgMappings SKIPPED
+> Task :downloadVanillaJars SKIPPED
+> Task :mergeVanillaSidedJars
+
+> Task :deobfuscateMergedJarToSrg
+Applying SpecialSource
+Loading 1 AccessTransformers
+Renamed 0 AT entries
+Applying Exceptor
+Cleaning up generated debuginfo
+
+> Task :downloadFernflower SKIPPED
+
+> Task :decompileSrgJar
+Using cached decompiled jar from /home/runner/.gradle/caches/retro_futura_gradle/fernflower-cache/1.0.342-eb8d36e1a6e380af6020fe16beaddcdce174091f501f488867bd48f194f50657.jar
+
+> Task :cleanupDecompSrgJar
+Fixup stage 1 - applying FF patches
+  Stage 1 took 289 ms
+Fixup stage 2 - applying MCP patches
+  Stage 2 took 152 ms
+Fixup stage 3 - applying MCP cleanup
+  Stage 3 took 4499 ms
+Fixup stage 4 - injecting package-info
+  Injected 119 package-infos
+  Stage 4 took 4 ms
+Saving the fixed-up jar
+
+> Task :patchDecompiledJar
+Patching sources: 1 patch archives, 2 injection directories
+Applied 525 patches
+
+> Task :applySourceAccessTransformers
+
+> Task :remapDecompiledJar
+Applied 0 missing generics
+
+> Task :decompressDecompiledSources
+
+> Task :compilePatchedMcJava
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+
+> Task :processPatchedMcResources
+> Task :patchedMcClasses
+> Task :compileApiJava NO-SOURCE
+> Task :processApiResources NO-SOURCE
+> Task :apiClasses UP-TO-DATE
+> Task :injectTags
+> Task :compileInjectedTagsJava NO-SOURCE
+> Task :createMcLauncherFiles
+> Task :compileMcLauncherJava
+> Task :processInjectedTagsResources NO-SOURCE
+> Task :injectedTagsClasses UP-TO-DATE
+> Task :processMcLauncherResources NO-SOURCE
+> Task :mcLauncherClasses
+
+> Task :compileJava
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+
+> Task :processResources
+> Task :classes
+> Task :jar
+> Task :packageMcLauncher
+> Task :packagePatchedMc
+
+> Task :runClient
+[21:52:10] [main/INFO] [GradleStart]: userProperties: {}
+[21:52:10] [main/INFO] [GradleStart]: assetsDir: /home/runner/.gradle/caches/retro_futura_gradle/assets
+[21:52:10] [main/INFO] [GradleStart]: assetIndex: 1.12.2
+[21:52:10] [main/INFO] [GradleStart]: version: FML_DEV
+[21:52:10] [main/INFO] [GradleStart]: username: Developer
+[21:52:10] [main/INFO] [GradleStart]: Extra: [--width, 1280, --height, 720, --gameDir, /home/runner/work/pathtrace/pathtrace/run, --uuid, 31c4910d-9b69-4725-8969-9ed53ac8a7dc]
+[21:52:10] [main/INFO] [GradleStart]: Running with arguments: [--userProperties, {}, --assetsDir, /home/runner/.gradle/caches/retro_futura_gradle/assets, --assetIndex, 1.12.2, --accessToken{REDACTED}, --version, FML_DEV, --username, Developer, --tweakClass, net.minecraftforge.fml.common.launcher.FMLTweaker, --width, 1280, --height, 720, --gameDir, /home/runner/work/pathtrace/pathtrace/run, --uuid, 31c4910d-9b69-4725-8969-9ed53ac8a7dc, --tweakClass, net.minecraftforge.gradle.tweakers.CoremodTweaker]
+[21:52:10] [main/INFO] [LaunchWrapper]: Loading tweak class name net.minecraftforge.fml.common.launcher.FMLTweaker
+[21:52:10] [main/INFO] [LaunchWrapper]: Using primary tweak class name net.minecraftforge.fml.common.launcher.FMLTweaker
+[21:52:10] [main/INFO] [LaunchWrapper]: Loading tweak class name net.minecraftforge.gradle.tweakers.CoremodTweaker
+[21:52:10] [main/INFO] [LaunchWrapper]: Calling tweak class net.minecraftforge.fml.common.launcher.FMLTweaker
+[21:52:10] [main/INFO] [FML]: Forge Mod Loader version 14.23.5.2847 for Minecraft 1.12.2 loading
+[21:52:10] [main/INFO] [FML]: Java is OpenJDK 64-Bit Server VM, version 1.8.0_514, running on Linux:amd64:7.0.0-1019-azure, installed at /opt/hostedtoolcache/Java_Zulu_jdk/8.0.514-1/x64/jre
+[21:52:10] [main/ERROR] [FML]: Apache Maven library folder was not in the format expected. Using default libraries directory.
+[21:52:10] [main/ERROR] [FML]: Full: /home/runner/.gradle/caches/modules-2/files-2.1/org.apache.maven/maven-artifact/3.5.3/7dc72b6d6d8a6dced3d294ed54c2cc3515ade9f4/maven-artifact-3.5.3.jar
+[21:52:10] [main/ERROR] [FML]: Trimmed: /home/runner/.gradle/caches/modules-2/files-2.1/org.apache.maven/maven-artifact/3.5.3/
+[21:52:10] [main/INFO] [FML]: Managed to load a deobfuscated Minecraft name- we are in a deobfuscated environment. Skipping runtime deobfuscation
+[21:52:10] [main/INFO] [FML]: Detected deobfuscated environment, loading log configs for colored console logs.
+2026-11-19 21:52:10,968 main WARN Disabling terminal, you're running in an unsupported environment.
+[21:52:10] [main/INFO] [FML]: Ignoring missing certificate for coremod FMLCorePlugin (net.minecraftforge.fml.relauncher.FMLCorePlugin), we are in deobf and it's a forge core plugin
+[21:52:10] [main/INFO] [FML]: Ignoring missing certificate for coremod FMLForgePlugin (net.minecraftforge.classloading.FMLForgePlugin), we are in deobf and it's a forge core plugin
+[21:52:10] [main/INFO] [FML]: Searching /home/runner/work/pathtrace/pathtrace/run/mods for mods
+[21:52:10] [main/INFO] [LaunchWrapper]: Calling tweak class net.minecraftforge.gradle.tweakers.CoremodTweaker
+[21:52:10] [main/INFO] [GradleStart]: Injecting location in coremod net.minecraftforge.fml.relauncher.FMLCorePlugin
+[21:52:10] [main/INFO] [GradleStart]: Injecting location in coremod net.minecraftforge.classloading.FMLForgePlugin
+[21:52:10] [main/INFO] [LaunchWrapper]: Loading tweak class name net.minecraftforge.fml.common.launcher.FMLInjectionAndSortingTweaker
+[21:52:10] [main/INFO] [LaunchWrapper]: Loading tweak class name net.minecraftforge.fml.common.launcher.FMLDeobfTweaker
+[21:52:10] [main/INFO] [LaunchWrapper]: Loading tweak class name net.minecraftforge.gradle.tweakers.AccessTransformerTweaker
+[21:52:10] [main/INFO] [LaunchWrapper]: Calling tweak class net.minecraftforge.fml.common.launcher.FMLInjectionAndSortingTweaker
+[21:52:10] [main/INFO] [LaunchWrapper]: Calling tweak class net.minecraftforge.fml.common.launcher.FMLInjectionAndSortingTweaker
+[21:52:10] [main/INFO] [LaunchWrapper]: Calling tweak class net.minecraftforge.fml.relauncher.CoreModManager$FMLPluginWrapper
+[21:52:11] [main/ERROR] [FML]: FML appears to be missing any signature data. This is not a good thing
+[21:52:11] [main/INFO] [LaunchWrapper]: Calling tweak class net.minecraftforge.fml.relauncher.CoreModManager$FMLPluginWrapper
+[21:52:11] [main/INFO] [LaunchWrapper]: Calling tweak class net.minecraftforge.fml.common.launcher.FMLDeobfTweaker
+[21:52:11] [main/INFO] [LaunchWrapper]: Calling tweak class net.minecraftforge.gradle.tweakers.AccessTransformerTweaker
+[21:52:11] [main/INFO] [LaunchWrapper]: Loading tweak class name net.minecraftforge.fml.common.launcher.TerminalTweaker
+[21:52:11] [main/INFO] [LaunchWrapper]: Calling tweak class net.minecraftforge.fml.common.launcher.TerminalTweaker
+[21:52:11] [main/INFO] [LaunchWrapper]: Launching wrapped minecraft {net.minecraft.client.main.Main}
+[21:52:12] [Client thread/INFO] [minecraft/Minecraft]: Setting user: Developer
+[21:52:14] [Client thread/INFO] [minecraft/Minecraft]: LWJGL Version: 2.9.4
+[21:52:14] [Client thread/INFO] [FML]: MinecraftForge v14.23.5.2847 Initialized
+[21:52:14] [Client thread/INFO] [FML]: Starts to replace vanilla recipe ingredients with ore ingredients.
+[21:52:14] [Client thread/INFO] [FML]: Invalid recipe found with multiple oredict ingredients in the same ingredient...
+[21:52:14] [Client thread/INFO] [FML]: Replaced 1227 ore ingredients
+[21:52:14] [Client thread/INFO] [FML]: Searching /home/runner/work/pathtrace/pathtrace/run/mods for mods
+[21:52:15] [Client thread/INFO] [FML]: Forge Mod Loader has identified 5 mods to load
+[21:52:15] [Client thread/INFO] [FML]: Attempting connection with missing mods [minecraft, mcp, FML, forge, pathtrace] at CLIENT
+[21:52:15] [Client thread/INFO] [FML]: Attempting connection with missing mods [minecraft, mcp, FML, forge, pathtrace] at SERVER
+[21:52:16] [Client thread/INFO] [minecraft/SimpleReloadableResourceManager]: Reloading ResourceManager: Default, FMLFileResourcePack:Forge Mod Loader, FMLFileResourcePack:Minecraft Forge, FMLFileResourcePack:PathTrace
+[21:52:16] [Client thread/INFO] [FML]: Processing ObjectHolder annotations
+[21:52:16] [Client thread/INFO] [FML]: Found 1168 ObjectHolder annotations
+[21:52:16] [Client thread/INFO] [FML]: Identifying ItemStackHolder annotations
+[21:52:16] [Client thread/INFO] [FML]: Found 0 ItemStackHolder annotations
+[21:52:16] [Client thread/INFO] [FML]: Configured a dormant chunk cache size of 0
+[21:52:16] [Forge Version Check/INFO] [forge.VersionCheck]: [forge] Starting version check at http://files.minecraftforge.net/maven/net/minecraftforge/forge/promotions_slim.json
+[21:52:16] [Client thread/INFO] [FML]: Applying holder lookups
+[21:52:16] [Client thread/INFO] [FML]: Holder lookups applied
+[21:52:16] [Client thread/INFO] [FML]: Applying holder lookups
+[21:52:16] [Client thread/INFO] [FML]: Holder lookups applied
+[21:52:16] [Client thread/INFO] [FML]: Applying holder lookups
+[21:52:16] [Client thread/INFO] [FML]: Holder lookups applied
+[21:52:16] [Client thread/INFO] [FML]: Applying holder lookups
+[21:52:16] [Client thread/INFO] [FML]: Holder lookups applied
+[21:52:16] [Client thread/INFO] [FML]: Injecting itemstacks
+[21:52:16] [Client thread/INFO] [FML]: Itemstack injection complete
+[21:52:16] [Forge Version Check/INFO] [forge.VersionCheck]: [forge] Found status: OUTDATED Target: 14.23.5.2859
+[21:52:16] [Sound Library Loader/INFO] [minecraft/SoundManager]: Starting up SoundSystem...
+[21:52:17] [Thread-3/INFO] [minecraft/SoundManager]: Initializing LWJGL OpenAL
+[21:52:17] [Thread-3/INFO] [minecraft/SoundManager]: (The LWJGL binding of OpenAL.  For more information, see http://www.lwjgl.org)
+ALSA lib confmisc.c:855:(parse_card) [error.core] cannot find card '0'
+ALSA lib conf.c:5211:(_snd_config_evaluate) [error.core] function snd_func_card_inum returned error: No such file or directory
+ALSA lib confmisc.c:422:(snd_func_concat) [error.core] error evaluating strings
+ALSA lib conf.c:5211:(_snd_config_evaluate) [error.core] function snd_func_concat returned error: No such file or directory
+ALSA lib confmisc.c:1342:(snd_func_refer) [error.core] error evaluating name
+ALSA lib conf.c:5211:(_snd_config_evaluate) [error.core] function snd_func_refer returned error: No such file or directory
+ALSA lib conf.c:5734:(snd_config_expand) [error.core] Evaluate error: No such file or directory
+ALSA lib pcm.c:2722:(snd_pcm_open_noupdate) [error.pcm] Unknown PCM default
+AL lib: (EE) alsa_open_playback: Could not open playback device 'default': No such file or directory
+[21:52:17] [Thread-3/ERROR] [minecraft/SoundManager]: Error in class 'LibraryLWJGLOpenAL'
+[21:52:17] [Thread-3/ERROR] [minecraft/SoundManager]: Unable to initialize OpenAL.  Probable cause: OpenAL not supported.
+[21:52:17] [Thread-3/WARN] [minecraft/SoundManager]: ERROR MESSAGE:
+[21:52:17] [Thread-3/INFO] [minecraft/SoundManager]: Could not locate OpenAL library.
+[21:52:17] [Thread-3/WARN] [minecraft/SoundManager]: STACK TRACE:
+[21:52:17] [Thread-3/INFO] [minecraft/SoundManager]: org.lwjgl.openal.AL.create(AL.java:156)
+[21:52:17] [Thread-3/INFO] [minecraft/SoundManager]: org.lwjgl.openal.AL.create(AL.java:102)
+[21:52:17] [Thread-3/INFO] [minecraft/SoundManager]: org.lwjgl.openal.AL.create(AL.java:206)
+[21:52:17] [Thread-3/INFO] [minecraft/SoundManager]: paulscode.sound.libraries.LibraryLWJGLOpenAL.init(LibraryLWJGLOpenAL.java:164)
+[21:52:17] [Thread-3/INFO] [minecraft/SoundManager]: paulscode.sound.SoundSystem.CommandNewLibrary(SoundSystem.java:1576)
+[21:52:17] [Thread-3/INFO] [minecraft/SoundManager]: paulscode.sound.SoundSystem.CommandQueue(SoundSystem.java:2572)
+[21:52:17] [Thread-3/INFO] [minecraft/SoundManager]: paulscode.sound.CommandThread.run(CommandThread.java:121)
+[21:52:17] [Sound Library Loader/WARN] [minecraft/SoundManager]: ERROR MESSAGE:
+[21:52:17] [Sound Library Loader/INFO] [minecraft/SoundManager]: Could not locate OpenAL library.
+[21:52:17] [Sound Library Loader/INFO] [minecraft/SoundManager]: Starting up SoundSystem...
+[21:52:17] [Client thread/INFO] [FML]: Max texture size: 16384
+[21:52:17] [Thread-5/INFO] [minecraft/SoundManager]: Switching to No Sound
+[21:52:17] [Thread-5/INFO] [minecraft/SoundManager]: (Silent Mode)
+[21:52:18] [Client thread/INFO] [minecraft/TextureMap]: Created: 512x512 textures-atlas
+[21:52:18] [Sound Library Loader/INFO] [minecraft/SoundManager]: Sound engine started
+[21:52:18] [Client thread/INFO] [FML]: Applying holder lookups
+[21:52:18] [Client thread/INFO] [FML]: Holder lookups applied
+[21:52:19] [Client thread/INFO] [PathTrace]: PathTrace autoshot test mode enabled
+[21:52:19] [Client thread/INFO] [PathTrace]: PathTrace loaded. Use /pathtrace on|off|toggle|status|reload|set.
+[21:52:19] [Client thread/INFO] [FML]: Injecting itemstacks
+[21:52:19] [Client thread/INFO] [FML]: Itemstack injection complete
+[21:52:19] [Client thread/INFO] [FML]: Forge Mod Loader has successfully loaded 5 mods
+[21:52:19] [Client thread/WARN] [mojang/NarratorLinux]: ERROR : Couldn't load Narrator library : Unable to load library 'fliteWrapper': Can't obtain InputStream for linux-x86-64/libfliteWrapper.so
+[21:52:19] [Realms Notification Availability checker #1/INFO] [mojang/RealmsClient]: Could not authorize you against Realms server: java.lang.RuntimeException: Failed to parse into SignedJWT: 0
+[21:52:19] [Client thread/INFO] [PathTrace]: [autoshot] creating world
+[21:52:19] [Server thread/INFO] [minecraft/IntegratedServer]: Starting integrated minecraft server version 1.12.2
+[21:52:19] [Server thread/INFO] [minecraft/IntegratedServer]: Generating keypair
+[21:52:20] [Server thread/INFO] [FML]: Injecting existing registry data into this server instance
+[21:52:20] [Server thread/INFO] [FML]: Applying holder lookups
+[21:52:20] [Server thread/INFO] [FML]: Holder lookups applied
+[21:52:20] [Server thread/INFO] [FML]: Loading dimension 0 (pathtrace_autoshot) (net.minecraft.server.integrated.IntegratedServer@6e53f359)
+[21:52:20] [Server thread/INFO] [minecraft/AdvancementList]: Loaded 488 advancements
+[21:52:21] [Server thread/INFO] [FML]: Loading dimension -1 (pathtrace_autoshot) (net.minecraft.server.integrated.IntegratedServer@6e53f359)
+[21:52:21] [Server thread/INFO] [FML]: Loading dimension 1 (pathtrace_autoshot) (net.minecraft.server.integrated.IntegratedServer@6e53f359)
+[21:52:21] [Server thread/INFO] [minecraft/MinecraftServer]: Preparing start region for level 0
+[21:52:21] [Server thread/INFO] [FML]: Unloading dimension -1
+[21:52:21] [Server thread/INFO] [FML]: Unloading dimension 1
+[21:52:21] [Server thread/INFO] [minecraft/IntegratedServer]: Changing view distance to 8, from 10
+[21:52:22] [Client thread/WARN] [mojang/YggdrasilMinecraftSessionService]: Couldn't look up profile properties for com.mojang.authlib.GameProfile@29174934[id=31c4910d-9b69-4725-8969-9ed53ac8a7dc,name=Developer,properties={},legacy=false]
+com.mojang.authlib.exceptions.AuthenticationUnavailableException: Cannot contact authentication server
+	at com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService.makeRequest(YggdrasilAuthenticationService.java:89) ~[YggdrasilAuthenticationService.class:?]
+	at com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService.fillGameProfile(YggdrasilMinecraftSessionService.java:180) [YggdrasilMinecraftSessionService.class:?]
+	at com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService.fillProfileProperties(YggdrasilMinecraftSessionService.java:173) [YggdrasilMinecraftSessionService.class:?]
+	at net.minecraft.client.Minecraft.launchIntegratedServer(Minecraft.java:2551) [Minecraft.class:?]
+	at com.pathtrace.client.AutoShot.onClientTick(AutoShot.java:225) [AutoShot.class:?]
+	at net.minecraftforge.fml.common.eventhandler.ASMEventHandler_23_AutoShot_onClientTick_ClientTickEvent.invoke(.dynamic) [?:?]
+	at net.minecraftforge.fml.common.eventhandler.ASMEventHandler.invoke(ASMEventHandler.java:90) [ASMEventHandler.class:?]
+	at net.minecraftforge.fml.common.eventhandler.EventBus.post(EventBus.java:182) [EventBus.class:?]
+	at net.minecraftforge.fml.common.FMLCommonHandler.onPostClientTick(FMLCommonHandler.java:349) [FMLCommonHandler.class:?]
+	at net.minecraft.client.Minecraft.runTick(Minecraft.java:2038) [Minecraft.class:?]
+	at net.minecraft.client.Minecraft.runGameLoop(Minecraft.java:1188) [Minecraft.class:?]
+	at net.minecraft.client.Minecraft.run(Minecraft.java:442) [Minecraft.class:?]
+	at net.minecraft.client.main.Main.main(Main.java:118) [Main.class:?]
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[?:1.8.0_514]
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62) ~[?:1.8.0_514]
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[?:1.8.0_514]
+	at java.lang.reflect.Method.invoke(Method.java:498) ~[?:1.8.0_514]
+	at net.minecraft.launchwrapper.Launch.launch(Launch.java:135) [launchwrapper-1.12.jar:?]
+	at net.minecraft.launchwrapper.Launch.main(Launch.java:28) [launchwrapper-1.12.jar:?]
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[?:1.8.0_514]
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62) ~[?:1.8.0_514]
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[?:1.8.0_514]
+	at java.lang.reflect.Method.invoke(Method.java:498) ~[?:1.8.0_514]
+	at net.minecraftforge.gradle.GradleStartCommon.launch(GradleStartCommon.java:87) [mclauncher-1.12.2.jar:?]
+	at GradleStart.main(GradleStart.java:19) [mclauncher-1.12.2.jar:?]
+Caused by: com.google.gson.JsonSyntaxException: java.lang.IllegalStateException: Expected BEGIN_OBJECT but was STRING at line 1 column 1 path $
+	at com.google.gson.internal.bind.ReflectiveTypeAdapterFactory$Adapter.read(ReflectiveTypeAdapterFactory.java:224) ~[ReflectiveTypeAdapterFactory$Adapter.class:?]
+	at com.google.gson.Gson.fromJson(Gson.java:887) ~[Gson.class:?]
+	at com.google.gson.Gson.fromJson(Gson.java:852) ~[Gson.class:?]
+	at com.google.gson.Gson.fromJson(Gson.java:801) ~[Gson.class:?]
+	at com.google.gson.Gson.fromJson(Gson.java:773) ~[Gson.class:?]
+	at com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService.makeRequest(YggdrasilAuthenticationService.java:67) ~[YggdrasilAuthenticationService.class:?]
+	... 24 more
+Caused by: java.lang.IllegalStateException: Expected BEGIN_OBJECT but was STRING at line 1 column 1 path $
+	at com.google.gson.stream.JsonReader.beginObject(JsonReader.java:385) ~[JsonReader.class:?]
+	at com.google.gson.internal.bind.ReflectiveTypeAdapterFactory$Adapter.read(ReflectiveTypeAdapterFactory.java:213) ~[ReflectiveTypeAdapterFactory$Adapter.class:?]
+	at com.google.gson.Gson.fromJson(Gson.java:887) ~[Gson.class:?]
+	at com.google.gson.Gson.fromJson(Gson.java:852) ~[Gson.class:?]
+	at com.google.gson.Gson.fromJson(Gson.java:801) ~[Gson.class:?]
+	at com.google.gson.Gson.fromJson(Gson.java:773) ~[Gson.class:?]
+	at com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService.makeRequest(YggdrasilAuthenticationService.java:67) ~[YggdrasilAuthenticationService.class:?]
+	... 24 more
+[21:52:22] [Netty Local Client IO #0/INFO] [FML]: Server protocol version 2
+[21:52:22] [Netty Server IO #1/INFO] [FML]: Client protocol version 2
+[21:52:22] [Netty Server IO #1/INFO] [FML]: Client attempting to join with 5 mods : minecraft@1.12.2,FML@8.0.99.99,pathtrace@0.4.9,forge@14.23.5.2847,mcp@9.42
+[21:52:22] [Netty Local Client IO #0/INFO] [FML]: [Netty Local Client IO #0] Client side modded connection established
+[21:52:22] [Server thread/INFO] [FML]: [Server thread] Server side modded connection established
+[21:52:22] [Server thread/INFO] [minecraft/PlayerList]: Developer[local:E:ab16ee2c] logged in with entity id 0 at (-1197.5, 4.0, -371.5)
+[21:52:22] [Server thread/INFO] [minecraft/MinecraftServer]: Developer joined the game
+[21:52:23] [Server thread/INFO] [minecraft/IntegratedServer]: Saving and pausing game...
+[21:52:23] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'pathtrace_autoshot'/overworld
+[21:52:33] [Client thread/INFO] [PathTrace]: [autoshot] shot 0: 01_day_pathtrace
+[21:52:36] [Server thread/WARN] [minecraft/MinecraftServer]: Can't keep up! Did the system time change, or is the server overloaded? Running 3051ms behind, skipping 61 tick(s)
+[21:52:58] [Client thread/INFO] [PathTrace]: [autoshot] perf 01_day_pathtrace: GPU (ms): copy 0.79 gbuffer 0.00 probe 14.95 direct 2.70 trace 42.46 denoise 63.85 bloom 15.78 exposure 5.42 composite 21.58 vanilla 0.00 hand 5.48 | total 173.02 CPU (ms): voxels 0.63 voxUpload 11.94 emitters 0.09 lightgrid 0.07 lod 0.09 | total 12.82 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 33.9/121 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:52:58] [Client thread/INFO] [PathTrace]: [autoshot] saved 01_day_pathtrace
+[21:52:58] [Client thread/INFO] [PathTrace]: [autoshot] shot 1: 02_day_vanilla
+[21:53:00] [Client thread/INFO] [PathTrace]: [autoshot] saved 02_day_vanilla
+[21:53:00] [Client thread/INFO] [PathTrace]: [autoshot] shot 2: 03_day_debug_direct
+[21:53:09] [Client thread/INFO] [PathTrace]: [autoshot] perf 03_day_debug_direct: GPU (ms): copy 0.71 gbuffer 0.00 probe 12.58 direct 0.50 trace 38.25 denoise 59.93 bloom 14.77 exposure 5.19 composite 17.60 vanilla 0.00 hand 4.75 | total 154.29 CPU (ms): voxels 0.25 voxUpload 11.01 emitters 0.06 lightgrid 0.01 lod 0.01 | total 11.34 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 33.9/171 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:53:09] [Client thread/INFO] [PathTrace]: [autoshot] saved 03_day_debug_direct
+[21:53:09] [Client thread/INFO] [PathTrace]: [autoshot] shot 3: 04_day_debug_bounce
+[21:53:18] [Client thread/INFO] [PathTrace]: [autoshot] perf 04_day_debug_bounce: GPU (ms): copy 0.69 gbuffer 0.00 probe 12.52 direct 0.34 trace 37.74 denoise 58.22 bloom 14.66 exposure 5.18 composite 17.15 vanilla 0.00 hand 4.63 | total 151.14 CPU (ms): voxels 0.10 voxUpload 10.78 emitters 0.04 lightgrid 0.00 lod 0.00 | total 10.93 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 33.9/221 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:53:18] [Client thread/INFO] [PathTrace]: [autoshot] saved 04_day_debug_bounce
+[21:53:18] [Client thread/INFO] [PathTrace]: [autoshot] shot 4: 05_day_debug_normals
+[21:53:27] [Client thread/INFO] [PathTrace]: [autoshot] perf 05_day_debug_normals: GPU (ms): copy 0.77 gbuffer 0.00 probe 12.40 direct 0.31 trace 37.53 denoise 58.02 bloom 14.62 exposure 5.16 composite 16.51 vanilla 0.00 hand 4.79 | total 150.11 CPU (ms): voxels 0.09 voxUpload 11.13 emitters 0.03 lightgrid 0.00 lod 0.00 | total 11.27 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 33.9/271 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:53:27] [Client thread/INFO] [PathTrace]: [autoshot] saved 05_day_debug_normals
+[21:53:27] [Client thread/INFO] [PathTrace]: [autoshot] shot 5: 06_day_roof_pathtrace
+[21:53:44] [Client thread/INFO] [PathTrace]: [autoshot] perf 06_day_roof_pathtrace: GPU (ms): copy 0.70 gbuffer 0.00 probe 14.60 direct 0.36 trace 48.47 denoise 62.10 bloom 15.90 exposure 5.15 composite 21.39 vanilla 0.00 hand 4.68 | total 173.35 CPU (ms): voxels 0.08 voxUpload 11.26 emitters 0.03 lightgrid 0.00 lod 0.00 | total 11.38 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 33.9/361 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:53:44] [Client thread/INFO] [PathTrace]: [autoshot] saved 06_day_roof_pathtrace
+[21:53:44] [Client thread/INFO] [PathTrace]: [autoshot] shot 6: 07_day_inside_pathtrace
+[21:54:07] [Client thread/INFO] [PathTrace]: [autoshot] perf 07_day_inside_pathtrace: GPU (ms): copy 0.70 gbuffer 0.00 probe 20.29 direct 0.35 trace 30.13 denoise 108.60 bloom 22.28 exposure 5.14 composite 28.46 vanilla 0.00 hand 4.72 | total 220.66 CPU (ms): voxels 0.08 voxUpload 15.25 emitters 0.02 lightgrid 0.00 lod 0.00 | total 15.37 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 33.9/451 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:54:07] [Client thread/INFO] [PathTrace]: [autoshot] saved 07_day_inside_pathtrace
+[21:54:07] [Client thread/INFO] [PathTrace]: [autoshot] shot 7: 08_day_inside_vanilla
+[21:54:09] [Client thread/INFO] [PathTrace]: [autoshot] saved 08_day_inside_vanilla
+[21:54:09] [Client thread/INFO] [PathTrace]: [autoshot] shot 8: 09_night_pathtrace
+[21:54:27] [Client thread/INFO] [PathTrace]: [autoshot] perf 09_night_pathtrace: GPU (ms): copy 0.71 gbuffer 0.00 probe 12.69 direct 0.31 trace 42.89 denoise 62.25 bloom 14.38 exposure 5.06 composite 20.51 vanilla 0.00 hand 11.03 | total 169.84 CPU (ms): voxels 0.08 voxUpload 11.27 emitters 0.02 lightgrid 0.00 lod 0.00 | total 11.38 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 33.9/541 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:54:27] [Client thread/INFO] [PathTrace]: [autoshot] saved 09_night_pathtrace
+[21:54:27] [Client thread/INFO] [PathTrace]: [autoshot] shot 9: 10_night_vanilla
+[21:54:29] [Client thread/INFO] [PathTrace]: [autoshot] saved 10_night_vanilla
+[21:54:29] [Client thread/INFO] [PathTrace]: [autoshot] shot 10: 11_night_inside_pathtrace
+[21:54:53] [Client thread/INFO] [PathTrace]: [autoshot] perf 11_night_inside_pathtrace: GPU (ms): copy 0.69 gbuffer 0.00 probe 20.25 direct 0.30 trace 33.03 denoise 106.54 bloom 22.08 exposure 5.14 composite 29.84 vanilla 0.00 hand 11.13 | total 228.99 CPU (ms): voxels 0.09 voxUpload 15.07 emitters 0.02 lightgrid 0.00 lod 0.00 | total 15.18 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 33.9/631 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:54:53] [Client thread/INFO] [PathTrace]: [autoshot] saved 11_night_inside_pathtrace
+[21:54:53] [Client thread/INFO] [PathTrace]: [autoshot] shot 11: 12_night_inside_vanilla
+[21:54:55] [Client thread/INFO] [PathTrace]: [autoshot] saved 12_night_inside_vanilla
+[21:54:55] [Client thread/INFO] [PathTrace]: [autoshot] shot 12: 13_night_debug_direct
+[21:55:12] [Client thread/INFO] [PathTrace]: [autoshot] perf 13_night_debug_direct: GPU (ms): copy 0.68 gbuffer 0.00 probe 12.67 direct 0.35 trace 43.49 denoise 62.88 bloom 14.45 exposure 5.07 composite 16.94 vanilla 0.00 hand 4.59 | total 161.11 CPU (ms): voxels 0.09 voxUpload 10.96 emitters 0.02 lightgrid 0.00 lod 0.00 | total 11.07 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 33.9/721 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:55:12] [Client thread/INFO] [PathTrace]: [autoshot] saved 13_night_debug_direct
+[21:55:12] [Client thread/INFO] [PathTrace]: [autoshot] shot 13: 14_night_torch_ground_pathtrace
+[21:55:36] [Client thread/INFO] [PathTrace]: [autoshot] perf 14_night_torch_ground_pathtrace: GPU (ms): copy 0.70 gbuffer 0.00 probe 17.86 direct 0.32 trace 62.92 denoise 97.52 bloom 19.46 exposure 5.13 composite 26.34 vanilla 0.00 hand 12.21 | total 242.45 CPU (ms): voxels 0.08 voxUpload 10.17 emitters 0.02 lightgrid 0.00 lod 0.00 | total 10.27 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 33.9/811 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:55:36] [Client thread/INFO] [PathTrace]: [autoshot] saved 14_night_torch_ground_pathtrace
+[21:55:36] [Client thread/INFO] [PathTrace]: [autoshot] shot 14: 15_night_torch_ground_vanilla
+[21:55:38] [Client thread/INFO] [PathTrace]: [autoshot] saved 15_night_torch_ground_vanilla
+[21:55:38] [Client thread/INFO] [PathTrace]: [autoshot] shot 15: 16_night_torch_ground_debug_direct
+[21:55:50] [Client thread/INFO] [PathTrace]: [autoshot] perf 16_night_torch_ground_debug_direct: GPU (ms): copy 0.67 gbuffer 0.00 probe 17.64 direct 0.31 trace 61.66 denoise 97.27 bloom 19.18 exposure 5.07 composite 21.75 vanilla 0.00 hand 5.32 | total 228.87 CPU (ms): voxels 0.08 voxUpload 10.32 emitters 0.02 lightgrid 0.00 lod 0.00 | total 10.42 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 33.9/861 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:55:50] [Client thread/INFO] [PathTrace]: [autoshot] saved 16_night_torch_ground_debug_direct
+[21:55:50] [Client thread/INFO] [PathTrace]: [autoshot] shot 16: 17_night_far_tower_pathtrace
+[21:56:05] [Client thread/INFO] [PathTrace]: [autoshot] perf 17_night_far_tower_pathtrace: GPU (ms): copy 0.69 gbuffer 0.00 probe 11.04 direct 0.37 trace 38.93 denoise 44.37 bloom 12.55 exposure 5.08 composite 17.19 vanilla 0.00 hand 4.59 | total 134.82 CPU (ms): voxels 0.08 voxUpload 12.30 emitters 0.01 lightgrid 0.01 lod 0.00 | total 12.40 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/951 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:56:05] [Client thread/INFO] [PathTrace]: [autoshot] saved 17_night_far_tower_pathtrace
+[21:56:05] [Client thread/INFO] [PathTrace]: [autoshot] shot 17: 18_night_far_tower_vanilla
+[21:56:08] [Client thread/INFO] [PathTrace]: [autoshot] saved 18_night_far_tower_vanilla
+[21:56:08] [Client thread/INFO] [PathTrace]: [autoshot] shot 18: 19_night_far_tower_debug_direct
+[21:56:15] [Client thread/INFO] [PathTrace]: [autoshot] perf 19_night_far_tower_debug_direct: GPU (ms): copy 0.68 gbuffer 0.00 probe 10.54 direct 0.36 trace 38.51 denoise 44.42 bloom 12.69 exposure 5.02 composite 15.03 vanilla 0.00 hand 4.50 | total 131.75 CPU (ms): voxels 0.08 voxUpload 12.01 emitters 0.02 lightgrid 0.00 lod 0.00 | total 12.10 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/1001 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:56:15] [Client thread/INFO] [PathTrace]: [autoshot] saved 19_night_far_tower_debug_direct
+[21:56:15] [Client thread/INFO] [PathTrace]: [autoshot] shot 19: 20_day_far_tower_pathtrace
+[21:56:30] [Client thread/INFO] [PathTrace]: [autoshot] perf 20_day_far_tower_pathtrace: GPU (ms): copy 0.68 gbuffer 0.00 probe 10.65 direct 0.39 trace 37.83 denoise 45.27 bloom 12.50 exposure 5.04 composite 16.83 vanilla 0.00 hand 4.54 | total 133.73 CPU (ms): voxels 0.08 voxUpload 11.98 emitters 0.01 lightgrid 0.00 lod 0.00 | total 12.07 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/1091 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:56:30] [Client thread/INFO] [PathTrace]: [autoshot] saved 20_day_far_tower_pathtrace
+[21:56:30] [Client thread/INFO] [PathTrace]: [autoshot] shot 20: 21_day_far_tower_vanilla
+[21:56:32] [Client thread/INFO] [PathTrace]: [autoshot] saved 21_day_far_tower_vanilla
+[21:56:32] [Client thread/INFO] [PathTrace]: [autoshot] shot 21: 22_day_far_tower_debug_direct
+[21:56:40] [Client thread/INFO] [PathTrace]: [autoshot] perf 22_day_far_tower_debug_direct: GPU (ms): copy 0.67 gbuffer 0.00 probe 11.04 direct 0.38 trace 38.00 denoise 43.98 bloom 12.21 exposure 5.05 composite 15.01 vanilla 0.00 hand 4.60 | total 130.94 CPU (ms): voxels 0.08 voxUpload 12.42 emitters 0.01 lightgrid 0.00 lod 0.00 | total 12.51 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/1141 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:56:40] [Client thread/INFO] [PathTrace]: [autoshot] saved 22_day_far_tower_debug_direct
+[21:56:40] [Client thread/INFO] [PathTrace]: [autoshot] shot 22: 23_day_far_shadow_lod
+[21:56:55] [Client thread/INFO] [PathTrace]: [autoshot] perf 23_day_far_shadow_lod: GPU (ms): copy 0.72 gbuffer 0.00 probe 11.74 direct 0.36 trace 34.37 denoise 49.24 bloom 15.30 exposure 5.37 composite 20.20 vanilla 0.00 hand 5.05 | total 142.33 CPU (ms): voxels 0.10 voxUpload 12.86 emitters 0.01 lightgrid 0.01 lod 0.00 | total 12.99 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/1231 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:56:55] [Client thread/INFO] [PathTrace]: [autoshot] saved 23_day_far_shadow_lod
+[21:56:55] [Client thread/INFO] [PathTrace]: [autoshot] shot 23: 24_day_far_shadow_no_lod
+[21:57:02] [Client thread/INFO] [PathTrace]: [autoshot] perf 24_day_far_shadow_no_lod: GPU (ms): copy 0.68 gbuffer 0.00 probe 11.52 direct 0.34 trace 21.14 denoise 46.94 bloom 14.24 exposure 5.13 composite 19.32 vanilla 0.00 hand 4.78 | total 124.11 CPU (ms): voxels 0.09 voxUpload 12.41 emitters 0.01 lightgrid 0.00 lod 0.00 | total 12.51 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/1281 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:57:02] [Client thread/INFO] [PathTrace]: [autoshot] saved 24_day_far_shadow_no_lod
+[21:57:02] [Client thread/INFO] [PathTrace]: [autoshot] shot 24: 25_day_far_shadow_vanilla
+[21:57:05] [Client thread/INFO] [PathTrace]: [autoshot] saved 25_day_far_shadow_vanilla
+[21:57:05] [Client thread/INFO] [PathTrace]: [autoshot] shot 25: 26_day_partial_pathtrace
+[21:57:26] [Client thread/INFO] [PathTrace]: [autoshot] perf 26_day_partial_pathtrace: GPU (ms): copy 0.69 gbuffer 0.00 probe 16.61 direct 0.34 trace 63.73 denoise 80.34 bloom 17.79 exposure 5.01 composite 23.37 vanilla 0.00 hand 4.74 | total 212.61 CPU (ms): voxels 0.10 voxUpload 10.10 emitters 0.01 lightgrid 0.01 lod 0.00 | total 10.22 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/1371 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:57:26] [Client thread/INFO] [PathTrace]: [autoshot] saved 26_day_partial_pathtrace
+[21:57:26] [Client thread/INFO] [PathTrace]: [autoshot] shot 26: 27_day_partial_vanilla
+[21:57:28] [Client thread/INFO] [PathTrace]: [autoshot] saved 27_day_partial_vanilla
+[21:57:28] [Client thread/INFO] [PathTrace]: [autoshot] shot 27: 28_night_partial_pathtrace
+[21:57:49] [Client thread/INFO] [PathTrace]: [autoshot] perf 28_night_partial_pathtrace: GPU (ms): copy 0.69 gbuffer 0.00 probe 16.56 direct 0.34 trace 62.21 denoise 79.18 bloom 17.77 exposure 5.14 composite 23.48 vanilla 0.00 hand 4.62 | total 209.98 CPU (ms): voxels 0.08 voxUpload 10.81 emitters 0.01 lightgrid 0.00 lod 0.00 | total 10.90 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/1461 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:57:49] [Client thread/INFO] [PathTrace]: [autoshot] saved 28_night_partial_pathtrace
+[21:57:49] [Client thread/INFO] [PathTrace]: [autoshot] shot 28: 29_night_partial_vanilla
+[21:57:51] [Client thread/INFO] [PathTrace]: [autoshot] saved 29_night_partial_vanilla
+[21:57:51] [Client thread/INFO] [PathTrace]: [autoshot] shot 29: 30_night_flush_lava_pathtrace
+[21:58:15] [Client thread/INFO] [PathTrace]: [autoshot] perf 30_night_flush_lava_pathtrace: GPU (ms): copy 0.70 gbuffer 0.00 probe 18.42 direct 0.34 trace 71.13 denoise 88.36 bloom 19.70 exposure 5.07 composite 25.75 vanilla 0.00 hand 4.66 | total 234.13 CPU (ms): voxels 0.08 voxUpload 10.94 emitters 0.01 lightgrid 0.00 lod 0.01 | total 11.04 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/1551 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:58:15] [Client thread/INFO] [PathTrace]: [autoshot] saved 30_night_flush_lava_pathtrace
+[21:58:15] [Client thread/INFO] [PathTrace]: [autoshot] shot 30: 31_night_flush_lava_no_bloom
+[21:58:28] [Client thread/INFO] [PathTrace]: [autoshot] perf 31_night_flush_lava_no_bloom: GPU (ms): copy 0.71 gbuffer 0.00 probe 18.38 direct 0.35 trace 71.82 denoise 89.98 bloom 1.87 exposure 15.00 composite 25.63 vanilla 0.00 hand 4.72 | total 228.48 CPU (ms): voxels 0.09 voxUpload 10.91 emitters 0.01 lightgrid 0.00 lod 0.00 | total 11.01 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/1601 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:58:28] [Client thread/INFO] [PathTrace]: [autoshot] saved 31_night_flush_lava_no_bloom
+[21:58:28] [Client thread/INFO] [PathTrace]: [autoshot] shot 31: 32_night_flush_lava_vanilla
+[21:58:30] [Client thread/INFO] [PathTrace]: [autoshot] saved 32_night_flush_lava_vanilla
+[21:58:30] [Client thread/INFO] [PathTrace]: [autoshot] shot 32: 33_day_partial_closeup
+[21:58:56] [Client thread/INFO] [PathTrace]: [autoshot] perf 33_day_partial_closeup: GPU (ms): copy 0.68 gbuffer 0.00 probe 23.83 direct 0.45 trace 83.77 denoise 105.21 bloom 19.05 exposure 5.35 composite 25.80 vanilla 0.00 hand 4.85 | total 268.99 CPU (ms): voxels 0.08 voxUpload 11.00 emitters 0.01 lightgrid 0.00 lod 0.01 | total 11.09 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/1691 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:58:56] [Client thread/INFO] [PathTrace]: [autoshot] saved 33_day_partial_closeup
+[21:58:56] [Client thread/INFO] [PathTrace]: [autoshot] shot 33: 34_night_partial_closeup
+[21:59:21] [Client thread/INFO] [PathTrace]: [autoshot] perf 34_night_partial_closeup: GPU (ms): copy 0.68 gbuffer 0.00 probe 22.55 direct 0.35 trace 75.18 denoise 100.15 bloom 19.03 exposure 5.00 composite 24.58 vanilla 0.00 hand 4.55 | total 252.07 CPU (ms): voxels 0.08 voxUpload 10.72 emitters 0.01 lightgrid 0.00 lod 0.00 | total 10.81 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/1781 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:59:21] [Client thread/INFO] [PathTrace]: [autoshot] saved 34_night_partial_closeup
+[21:59:21] [Client thread/INFO] [PathTrace]: [autoshot] shot 34: 35_night_partial_closeup_vanilla
+[21:59:23] [Client thread/INFO] [PathTrace]: [autoshot] saved 35_night_partial_closeup_vanilla
+[21:59:23] [Client thread/INFO] [PathTrace]: [autoshot] shot 35: 36_day_partial_top_debug_direct
+[21:59:50] [Client thread/INFO] [PathTrace]: [autoshot] perf 36_day_partial_top_debug_direct: GPU (ms): copy 0.66 gbuffer 0.00 probe 21.96 direct 0.37 trace 94.27 denoise 112.35 bloom 22.14 exposure 5.03 composite 24.02 vanilla 0.00 hand 4.62 | total 285.41 CPU (ms): voxels 0.08 voxUpload 8.03 emitters 0.01 lightgrid 0.00 lod 0.00 | total 8.12 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/1871 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[21:59:50] [Client thread/INFO] [PathTrace]: [autoshot] saved 36_day_partial_top_debug_direct
+[21:59:50] [Client thread/INFO] [PathTrace]: [autoshot] shot 36: 37_night_partial_top_debug_direct
+[22:00:17] [Client thread/INFO] [PathTrace]: [autoshot] perf 37_night_partial_top_debug_direct: GPU (ms): copy 0.66 gbuffer 0.00 probe 21.73 direct 0.37 trace 92.16 denoise 109.05 bloom 22.45 exposure 5.14 composite 24.12 vanilla 0.00 hand 4.62 | total 280.30 CPU (ms): voxels 0.08 voxUpload 7.72 emitters 0.00 lightgrid 0.00 lod 0.00 | total 7.80 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/1961 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:00:17] [Client thread/INFO] [PathTrace]: [autoshot] saved 37_night_partial_top_debug_direct
+[22:00:17] [Client thread/INFO] [PathTrace]: [autoshot] shot 37: 38_day_partial_top_normals
+[22:00:44] [Client thread/INFO] [PathTrace]: [autoshot] perf 38_day_partial_top_normals: GPU (ms): copy 0.65 gbuffer 0.00 probe 21.76 direct 0.38 trace 94.87 denoise 112.28 bloom 22.06 exposure 5.02 composite 22.68 vanilla 0.00 hand 4.62 | total 284.32 CPU (ms): voxels 0.10 voxUpload 7.85 emitters 0.01 lightgrid 0.00 lod 0.00 | total 7.96 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/2051 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:00:44] [Client thread/INFO] [PathTrace]: [autoshot] saved 38_day_partial_top_normals
+[22:00:44] [Client thread/INFO] [PathTrace]: [autoshot] shot 38: 39_night_glass_pathtrace
+[22:01:11] [Client thread/INFO] [PathTrace]: [autoshot] perf 39_night_glass_pathtrace: GPU (ms): copy 0.67 gbuffer 0.00 probe 20.48 direct 0.35 trace 93.17 denoise 105.55 bloom 22.11 exposure 5.03 composite 28.83 vanilla 0.00 hand 4.70 | total 280.89 CPU (ms): voxels 0.10 voxUpload 10.27 emitters 0.01 lightgrid 0.01 lod 0.01 | total 10.40 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/2141 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:01:11] [Client thread/INFO] [PathTrace]: [autoshot] saved 39_night_glass_pathtrace
+[22:01:11] [Client thread/INFO] [PathTrace]: [autoshot] shot 39: 40_night_glass_vanilla
+[22:01:13] [Client thread/INFO] [PathTrace]: [autoshot] saved 40_night_glass_vanilla
+[22:01:13] [Client thread/INFO] [PathTrace]: [autoshot] shot 40: 41_night_far_point_shadow
+[22:01:28] [Client thread/INFO] [PathTrace]: [autoshot] perf 41_night_far_point_shadow: GPU (ms): copy 0.70 gbuffer 0.00 probe 11.81 direct 0.36 trace 34.25 denoise 48.50 bloom 14.63 exposure 5.06 composite 19.75 vanilla 0.00 hand 4.63 | total 139.68 CPU (ms): voxels 0.17 voxUpload 11.27 emitters 0.01 lightgrid 0.01 lod 0.01 | total 11.48 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/2231 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:01:28] [Client thread/INFO] [PathTrace]: [autoshot] saved 41_night_far_point_shadow
+[22:01:28] [Client thread/INFO] [PathTrace]: [autoshot] shot 41: 42_night_far_point_shadow_no_lod
+[22:01:36] [Client thread/INFO] [PathTrace]: [autoshot] perf 42_night_far_point_shadow_no_lod: GPU (ms): copy 0.66 gbuffer 0.00 probe 11.60 direct 0.28 trace 17.26 denoise 48.30 bloom 14.54 exposure 5.05 composite 19.61 vanilla 0.00 hand 4.63 | total 121.93 CPU (ms): voxels 0.09 voxUpload 11.14 emitters 0.01 lightgrid 0.00 lod 0.00 | total 11.24 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/2281 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:01:36] [Client thread/INFO] [PathTrace]: [autoshot] saved 42_night_far_point_shadow_no_lod
+[22:01:36] [Client thread/INFO] [PathTrace]: [autoshot] shot 42: 43_night_far_point_shadow_vanilla
+[22:01:39] [Client thread/INFO] [PathTrace]: [autoshot] saved 43_night_far_point_shadow_vanilla
+[22:01:39] [Client thread/INFO] [PathTrace]: [autoshot] shot 43: 44_night_chest_pathtrace
+[22:02:01] [Client thread/INFO] [PathTrace]: [autoshot] perf 44_night_chest_pathtrace: GPU (ms): copy 0.68 gbuffer 0.00 probe 16.63 direct 0.36 trace 68.03 denoise 91.38 bloom 17.27 exposure 5.19 composite 22.77 vanilla 0.00 hand 4.65 | total 226.96 CPU (ms): voxels 0.29 voxUpload 9.42 emitters 0.01 lightgrid 0.01 lod 0.01 | total 9.74 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/2371 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:02:01] [Client thread/INFO] [PathTrace]: [autoshot] saved 44_night_chest_pathtrace
+[22:02:01] [Client thread/INFO] [PathTrace]: [autoshot] shot 44: 45_night_chest_vanilla
+[22:02:04] [Client thread/INFO] [PathTrace]: [autoshot] saved 45_night_chest_vanilla
+[22:02:04] [Client thread/INFO] [PathTrace]: [autoshot] shot 45: 46_night_chest_debug_direct
+[22:02:16] [Client thread/INFO] [PathTrace]: [autoshot] perf 46_night_chest_debug_direct: GPU (ms): copy 0.72 gbuffer 0.00 probe 16.51 direct 0.36 trace 67.05 denoise 88.47 bloom 16.83 exposure 5.05 composite 19.48 vanilla 0.00 hand 4.64 | total 219.09 CPU (ms): voxels 0.10 voxUpload 9.16 emitters 0.01 lightgrid 0.00 lod 0.00 | total 9.27 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/2421 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:02:16] [Client thread/INFO] [PathTrace]: [autoshot] saved 46_night_chest_debug_direct
+[22:02:16] [Client thread/INFO] [PathTrace]: [autoshot] shot 46: 47_night_chest_debug_bounce
+[22:02:28] [Client thread/INFO] [PathTrace]: [autoshot] perf 47_night_chest_debug_bounce: GPU (ms): copy 0.67 gbuffer 0.00 probe 16.74 direct 0.40 trace 66.97 denoise 88.31 bloom 16.92 exposure 5.11 composite 19.05 vanilla 0.00 hand 4.62 | total 218.79 CPU (ms): voxels 0.09 voxUpload 9.05 emitters 0.01 lightgrid 0.00 lod 0.00 | total 9.15 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/2471 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:02:28] [Client thread/INFO] [PathTrace]: [autoshot] saved 47_night_chest_debug_bounce
+[22:02:28] [Client thread/INFO] [PathTrace]: [autoshot] shot 47: 48_night_glowroom_pathtrace
+[22:02:49] [Client thread/INFO] [PathTrace]: [autoshot] perf 48_night_glowroom_pathtrace: GPU (ms): copy 0.70 gbuffer 0.00 probe 21.11 direct 0.25 trace 39.93 denoise 86.78 bloom 23.14 exposure 5.10 composite 28.92 vanilla 0.00 hand 4.75 | total 210.68 CPU (ms): voxels 0.09 voxUpload 11.95 emitters 0.01 lightgrid 0.01 lod 0.00 | total 12.06 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/2561 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:02:49] [Client thread/INFO] [PathTrace]: [autoshot] saved 48_night_glowroom_pathtrace
+[22:02:49] [Client thread/INFO] [PathTrace]: [autoshot] shot 48: 49_night_glowroom_vanilla
+[22:02:51] [Client thread/INFO] [PathTrace]: [autoshot] saved 49_night_glowroom_vanilla
+[22:02:51] [Client thread/INFO] [PathTrace]: [autoshot] shot 49: 50_night_glowroom_debug_direct
+[22:03:03] [Client thread/INFO] [PathTrace]: [autoshot] perf 50_night_glowroom_debug_direct: GPU (ms): copy 0.69 gbuffer 0.00 probe 21.37 direct 0.27 trace 40.07 denoise 87.95 bloom 23.43 exposure 5.14 composite 24.82 vanilla 0.00 hand 4.82 | total 208.56 CPU (ms): voxels 0.09 voxUpload 12.07 emitters 0.01 lightgrid 0.00 lod 0.00 | total 12.17 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/2611 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:03:03] [Client thread/INFO] [PathTrace]: [autoshot] saved 50_night_glowroom_debug_direct
+[22:03:03] [Client thread/INFO] [PathTrace]: [autoshot] shot 50: 51_night_glowroom_debug_bounce
+[22:03:15] [Client thread/INFO] [PathTrace]: [autoshot] perf 51_night_glowroom_debug_bounce: GPU (ms): copy 0.69 gbuffer 0.00 probe 20.80 direct 0.26 trace 39.57 denoise 87.05 bloom 23.20 exposure 5.14 composite 24.26 vanilla 0.00 hand 4.75 | total 205.71 CPU (ms): voxels 0.09 voxUpload 12.02 emitters 0.01 lightgrid 0.00 lod 0.00 | total 12.12 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/2661 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:03:15] [Client thread/INFO] [PathTrace]: [autoshot] saved 51_night_glowroom_debug_bounce
+[22:03:15] [Client thread/INFO] [PathTrace]: [autoshot] shot 51: 52_hall_pathtrace
+[22:03:41] [Client thread/INFO] [PathTrace]: [autoshot] perf 52_hall_pathtrace: GPU (ms): copy 0.69 gbuffer 0.00 probe 22.14 direct 0.25 trace 48.76 denoise 118.75 bloom 22.79 exposure 5.15 composite 29.06 vanilla 0.00 hand 4.69 | total 252.29 CPU (ms): voxels 0.10 voxUpload 12.98 emitters 0.03 lightgrid 0.01 lod 0.01 | total 13.12 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/2751 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:03:41] [Client thread/INFO] [PathTrace]: [autoshot] saved 52_hall_pathtrace
+[22:03:41] [Client thread/INFO] [PathTrace]: [autoshot] shot 52: 53_hall_vanilla
+[22:03:43] [Client thread/INFO] [PathTrace]: [autoshot] saved 53_hall_vanilla
+[22:03:43] [Client thread/INFO] [PathTrace]: [autoshot] shot 53: 54_hall_debug_direct
+[22:03:57] [Client thread/INFO] [PathTrace]: [autoshot] perf 54_hall_debug_direct: GPU (ms): copy 0.71 gbuffer 0.00 probe 22.53 direct 0.26 trace 49.68 denoise 123.47 bloom 23.19 exposure 5.28 composite 25.42 vanilla 0.00 hand 4.83 | total 255.36 CPU (ms): voxels 0.08 voxUpload 13.17 emitters 0.02 lightgrid 0.00 lod 0.00 | total 13.28 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/2801 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:03:57] [Client thread/INFO] [PathTrace]: [autoshot] saved 54_hall_debug_direct
+[22:03:57] [Client thread/INFO] [PathTrace]: [autoshot] shot 54: 55_hall_debug_bounce
+[22:04:11] [Client thread/INFO] [PathTrace]: [autoshot] perf 55_hall_debug_bounce: GPU (ms): copy 0.69 gbuffer 0.00 probe 22.03 direct 0.25 trace 48.79 denoise 118.62 bloom 23.27 exposure 5.23 composite 24.52 vanilla 0.00 hand 4.76 | total 248.16 CPU (ms): voxels 0.08 voxUpload 12.81 emitters 0.02 lightgrid 0.00 lod 0.00 | total 12.91 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/2851 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:04:11] [Client thread/INFO] [PathTrace]: [autoshot] saved 55_hall_debug_bounce
+[22:04:11] [Client thread/INFO] [PathTrace]: [autoshot] shot 55: 56_hall_debug_lightcount
+[22:04:24] [Client thread/INFO] [PathTrace]: [autoshot] perf 56_hall_debug_lightcount: GPU (ms): copy 0.66 gbuffer 0.00 probe 22.24 direct 0.28 trace 50.80 denoise 117.92 bloom 22.41 exposure 5.12 composite 22.02 vanilla 0.00 hand 4.64 | total 246.10 CPU (ms): voxels 0.08 voxUpload 12.76 emitters 0.01 lightgrid 0.00 lod 0.00 | total 12.86 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/2901 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:04:24] [Client thread/INFO] [PathTrace]: [autoshot] saved 56_hall_debug_lightcount
+[22:04:24] [Client thread/INFO] [PathTrace]: [autoshot] shot 56: 57_pit_pathtrace
+[22:04:57] [Client thread/INFO] [PathTrace]: [autoshot] perf 57_pit_pathtrace: GPU (ms): copy 0.70 gbuffer 0.00 probe 33.07 direct 0.30 trace 79.43 denoise 159.36 bloom 22.89 exposure 5.25 composite 30.36 vanilla 0.00 hand 5.12 | total 336.48 CPU (ms): voxels 0.09 voxUpload 12.99 emitters 0.02 lightgrid 0.00 lod 0.00 | total 13.10 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/2991 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:04:57] [Client thread/INFO] [PathTrace]: [autoshot] saved 57_pit_pathtrace
+[22:04:57] [Client thread/INFO] [PathTrace]: [autoshot] shot 57: 58_pit_vanilla
+[22:04:59] [Client thread/INFO] [PathTrace]: [autoshot] saved 58_pit_vanilla
+[22:04:59] [Client thread/INFO] [PathTrace]: [autoshot] shot 58: 59_pit_debug_direct
+[22:05:16] [Client thread/INFO] [PathTrace]: [autoshot] perf 59_pit_debug_direct: GPU (ms): copy 0.67 gbuffer 0.00 probe 32.34 direct 0.32 trace 78.64 denoise 157.23 bloom 22.49 exposure 5.20 composite 24.77 vanilla 0.00 hand 4.77 | total 326.44 CPU (ms): voxels 0.08 voxUpload 12.26 emitters 0.01 lightgrid 0.00 lod 0.00 | total 12.35 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/3041 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:05:16] [Client thread/INFO] [PathTrace]: [autoshot] saved 59_pit_debug_direct
+[22:05:16] [Client thread/INFO] [PathTrace]: [autoshot] shot 59: 60_pit_debug_bounce
+[22:05:34] [Client thread/INFO] [PathTrace]: [autoshot] perf 60_pit_debug_bounce: GPU (ms): copy 0.68 gbuffer 0.00 probe 32.09 direct 0.32 trace 78.06 denoise 156.74 bloom 22.29 exposure 5.13 composite 24.23 vanilla 0.00 hand 4.76 | total 324.31 CPU (ms): voxels 0.08 voxUpload 12.24 emitters 0.01 lightgrid 0.00 lod 0.00 | total 12.33 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/3091 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:05:34] [Client thread/INFO] [PathTrace]: [autoshot] saved 60_pit_debug_bounce
+[22:05:34] [Client thread/INFO] [PathTrace]: [autoshot] shot 60: 61_pit_debug_rays
+[22:05:52] [Client thread/INFO] [PathTrace]: [autoshot] perf 61_pit_debug_rays: GPU (ms): copy 0.67 gbuffer 0.00 probe 31.64 direct 0.30 trace 102.07 denoise 156.72 bloom 22.00 exposure 5.05 composite 22.01 vanilla 0.00 hand 4.67 | total 345.13 CPU (ms): voxels 0.08 voxUpload 12.08 emitters 0.01 lightgrid 0.00 lod 0.00 | total 12.17 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/3141 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:05:52] [Client thread/INFO] [PathTrace]: [autoshot] saved 61_pit_debug_rays
+[22:05:52] [Client thread/INFO] [PathTrace]: [autoshot] shot 61: 62_signs_pathtrace
+[22:06:22] [Client thread/INFO] [PathTrace]: [autoshot] perf 62_signs_pathtrace: GPU (ms): copy 0.68 gbuffer 0.00 probe 32.43 direct 0.29 trace 55.60 denoise 139.02 bloom 22.85 exposure 5.09 composite 28.94 vanilla 0.00 hand 4.71 | total 289.60 CPU (ms): voxels 0.08 voxUpload 16.15 emitters 0.01 lightgrid 0.00 lod 0.00 | total 16.24 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/3231 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:06:22] [Client thread/INFO] [PathTrace]: [autoshot] saved 62_signs_pathtrace
+[22:06:22] [Client thread/INFO] [PathTrace]: [autoshot] shot 62: 63_signs_vanilla
+[22:06:24] [Client thread/INFO] [PathTrace]: [autoshot] saved 63_signs_vanilla
+[22:06:24] [Client thread/INFO] [PathTrace]: [autoshot] shot 63: 64_signs_debug_direct
+[22:06:40] [Client thread/INFO] [PathTrace]: [autoshot] perf 64_signs_debug_direct: GPU (ms): copy 0.70 gbuffer 0.00 probe 33.03 direct 0.29 trace 54.88 denoise 139.49 bloom 22.45 exposure 5.08 composite 24.32 vanilla 0.00 hand 4.62 | total 284.87 CPU (ms): voxels 0.08 voxUpload 16.68 emitters 0.01 lightgrid 0.00 lod 0.00 | total 16.77 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/23 voxUpload 35.6/3281 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:06:40] [Client thread/INFO] [PathTrace]: [autoshot] saved 64_signs_debug_direct
+[22:06:40] [Client thread/INFO] [PathTrace]: [autoshot] shot 64: 65_corridor_pathtrace
+[22:07:03] [Client thread/INFO] [PathTrace]: [autoshot] perf 65_corridor_pathtrace: GPU (ms): copy 0.68 gbuffer 0.00 probe 22.11 direct 0.27 trace 43.35 denoise 98.68 bloom 23.20 exposure 5.21 composite 29.45 vanilla 0.00 hand 4.70 | total 227.65 CPU (ms): voxels 0.11 voxUpload 13.71 emitters 0.01 lightgrid 0.01 lod 0.00 | total 13.83 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/24 voxUpload 35.6/3370 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:07:03] [Client thread/INFO] [PathTrace]: [autoshot] saved 65_corridor_pathtrace
+[22:07:03] [Client thread/INFO] [PathTrace]: [autoshot] shot 65: 66_corridor_vanilla
+[22:07:05] [Client thread/INFO] [PathTrace]: [autoshot] saved 66_corridor_vanilla
+[22:07:05] [Client thread/INFO] [PathTrace]: [autoshot] shot 66: 67_corridor_debug_direct
+[22:07:17] [Client thread/INFO] [PathTrace]: [autoshot] perf 67_corridor_debug_direct: GPU (ms): copy 0.69 gbuffer 0.00 probe 21.89 direct 0.24 trace 42.41 denoise 97.49 bloom 22.72 exposure 5.10 composite 24.56 vanilla 0.00 hand 4.79 | total 219.90 CPU (ms): voxels 0.08 voxUpload 13.61 emitters 0.01 lightgrid 0.00 lod 0.00 | total 13.70 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/24 voxUpload 35.6/3420 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:07:17] [Client thread/INFO] [PathTrace]: [autoshot] saved 67_corridor_debug_direct
+[22:07:17] [Client thread/INFO] [PathTrace]: [autoshot] shot 67: 68_corridor_debug_lightcount
+[22:07:29] [Client thread/INFO] [PathTrace]: [autoshot] perf 68_corridor_debug_lightcount: GPU (ms): copy 0.68 gbuffer 0.00 probe 21.42 direct 0.24 trace 42.50 denoise 96.81 bloom 23.12 exposure 5.22 composite 22.77 vanilla 0.00 hand 4.78 | total 217.54 CPU (ms): voxels 0.08 voxUpload 13.63 emitters 0.01 lightgrid 0.00 lod 0.00 | total 13.72 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/24 voxUpload 35.6/3470 emitters 4.1/1 lightgrid 37.2/2 lod 46.5/4
+[22:07:29] [Client thread/INFO] [PathTrace]: [autoshot] saved 68_corridor_debug_lightcount
+[22:07:29] [Client thread/INFO] [PathTrace]: [autoshot] shot 68: 69_day_clouds_pathtrace
+[22:07:47] [Client thread/INFO] [PathTrace]: [autoshot] perf 69_day_clouds_pathtrace: GPU (ms): copy 0.71 gbuffer 0.00 probe 15.33 direct 0.30 trace 19.54 denoise 82.77 bloom 17.08 exposure 5.06 composite 22.81 vanilla 0.00 hand 4.61 | total 168.19 CPU (ms): voxels 0.12 voxUpload 17.15 emitters 0.01 lightgrid 0.03 lod 0.02 | total 17.32 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/30 voxUpload 35.6/3555 emitters 4.1/1 lightgrid 37.2/3 lod 46.5/5
+[22:07:47] [Client thread/INFO] [PathTrace]: [autoshot] saved 69_day_clouds_pathtrace
+[22:07:47] [Client thread/INFO] [PathTrace]: [autoshot] shot 69: 70_day_clouds_vanilla
+[22:07:50] [Client thread/INFO] [PathTrace]: [autoshot] saved 70_day_clouds_vanilla
+[22:07:50] [Client thread/INFO] [PathTrace]: [autoshot] shot 70: 71_day_clouds_debug_mask
+[22:07:59] [Client thread/INFO] [PathTrace]: [autoshot] perf 71_day_clouds_debug_mask: GPU (ms): copy 0.68 gbuffer 0.00 probe 15.53 direct 0.30 trace 19.55 denoise 84.11 bloom 17.42 exposure 5.21 composite 5.77 vanilla 0.00 hand 4.71 | total 153.29 CPU (ms): voxels 0.08 voxUpload 17.77 emitters 0.01 lightgrid 0.00 lod 0.00 | total 17.86 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/30 voxUpload 35.6/3605 emitters 4.1/1 lightgrid 37.2/3 lod 46.5/5
+[22:07:59] [Client thread/INFO] [PathTrace]: [autoshot] saved 71_day_clouds_debug_mask
+[22:07:59] [Client thread/INFO] [PathTrace]: [autoshot] shot 71: 72_day_clouds_debug_scene
+[22:08:08] [Client thread/INFO] [PathTrace]: [autoshot] perf 72_day_clouds_debug_scene: GPU (ms): copy 0.69 gbuffer 0.00 probe 15.23 direct 0.28 trace 19.04 denoise 82.24 bloom 17.17 exposure 5.18 composite 3.22 vanilla 0.00 hand 4.61 | total 147.67 CPU (ms): voxels 0.08 voxUpload 17.48 emitters 0.01 lightgrid 0.00 lod 0.00 | total 17.57 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/30 voxUpload 35.6/3655 emitters 4.1/1 lightgrid 37.2/3 lod 46.5/5
+[22:08:08] [Client thread/INFO] [PathTrace]: [autoshot] saved 72_day_clouds_debug_scene
+[22:08:08] [Client thread/INFO] [PathTrace]: [autoshot] shot 72: 73_hallway_pathtrace
+[22:08:32] [Client thread/INFO] [PathTrace]: [autoshot] perf 73_hallway_pathtrace: GPU (ms): copy 0.73 gbuffer 0.00 probe 20.32 direct 0.33 trace 43.16 denoise 111.35 bloom 22.31 exposure 5.07 composite 28.64 vanilla 0.00 hand 4.61 | total 236.51 CPU (ms): voxels 0.15 voxUpload 13.94 emitters 0.02 lightgrid 0.04 lod 0.05 | total 14.19 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/36 voxUpload 35.6/3740 emitters 4.1/1 lightgrid 37.2/4 lod 46.5/6
+[22:08:32] [Client thread/INFO] [PathTrace]: [autoshot] saved 73_hallway_pathtrace
+[22:08:32] [Client thread/INFO] [PathTrace]: [autoshot] shot 73: 74_hallway_vanilla
+[22:08:34] [Client thread/INFO] [PathTrace]: [autoshot] saved 74_hallway_vanilla
+[22:08:34] [Client thread/INFO] [PathTrace]: [autoshot] shot 74: 75_hallway_debug_direct
+[22:08:47] [Client thread/INFO] [PathTrace]: [autoshot] perf 75_hallway_debug_direct: GPU (ms): copy 0.69 gbuffer 0.00 probe 20.34 direct 0.34 trace 43.09 denoise 111.73 bloom 22.43 exposure 5.09 composite 24.71 vanilla 0.00 hand 4.60 | total 233.02 CPU (ms): voxels 0.09 voxUpload 14.17 emitters 0.01 lightgrid 0.00 lod 0.00 | total 14.27 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/36 voxUpload 35.6/3790 emitters 4.1/1 lightgrid 37.2/4 lod 46.5/6
+[22:08:47] [Client thread/INFO] [PathTrace]: [autoshot] saved 75_hallway_debug_direct
+[22:08:47] [Client thread/INFO] [PathTrace]: [autoshot] shot 75: 76_hallway_debug_bounce
+[22:09:01] [Client thread/INFO] [PathTrace]: [autoshot] perf 76_hallway_debug_bounce: GPU (ms): copy 0.70 gbuffer 0.00 probe 20.29 direct 0.35 trace 43.70 denoise 114.75 bloom 23.10 exposure 5.20 composite 25.10 vanilla 0.00 hand 4.72 | total 237.91 CPU (ms): voxels 0.08 voxUpload 14.65 emitters 0.00 lightgrid 0.00 lod 0.00 | total 14.75 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/36 voxUpload 35.6/3840 emitters 4.1/1 lightgrid 37.2/4 lod 46.5/6
+[22:09:01] [Client thread/INFO] [PathTrace]: [autoshot] saved 76_hallway_debug_bounce
+[22:09:01] [Client thread/INFO] [PathTrace]: [autoshot] shot 76: 77_pathfloor_pathtrace
+[22:09:25] [Client thread/INFO] [PathTrace]: [autoshot] perf 77_pathfloor_pathtrace: GPU (ms): copy 0.67 gbuffer 0.00 probe 27.31 direct 0.24 trace 55.85 denoise 102.05 bloom 22.07 exposure 5.08 composite 29.00 vanilla 0.00 hand 4.70 | total 246.99 CPU (ms): voxels 0.09 voxUpload 10.68 emitters 0.01 lightgrid 0.00 lod 0.00 | total 10.78 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/36 voxUpload 35.6/3930 emitters 4.1/1 lightgrid 37.2/4 lod 46.5/6
+[22:09:25] [Client thread/INFO] [PathTrace]: [autoshot] saved 77_pathfloor_pathtrace
+[22:09:25] [Client thread/INFO] [PathTrace]: [autoshot] shot 77: 78_pathfloor_vanilla
+[22:09:27] [Client thread/INFO] [PathTrace]: [autoshot] saved 78_pathfloor_vanilla
+[22:09:27] [Client thread/INFO] [PathTrace]: [autoshot] shot 78: 79_pathfloor_debug_direct
+[22:09:41] [Client thread/INFO] [PathTrace]: [autoshot] perf 79_pathfloor_debug_direct: GPU (ms): copy 0.67 gbuffer 0.00 probe 26.76 direct 0.22 trace 55.58 denoise 102.48 bloom 22.32 exposure 5.17 composite 24.56 vanilla 0.00 hand 4.76 | total 242.52 CPU (ms): voxels 0.08 voxUpload 10.53 emitters 0.00 lightgrid 0.00 lod 0.00 | total 10.62 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/36 voxUpload 35.6/3980 emitters 4.1/1 lightgrid 37.2/4 lod 46.5/6
+[22:09:41] [Client thread/INFO] [PathTrace]: [autoshot] saved 79_pathfloor_debug_direct
+[22:09:41] [Client thread/INFO] [PathTrace]: [autoshot] shot 79: 80_hallway_fast
+[22:09:55] [Client thread/INFO] [PathTrace]: [autoshot] perf 80_hallway_fast: GPU (ms): copy 0.77 gbuffer 0.00 probe 21.35 direct 0.38 trace 16.47 denoise 50.21 bloom 13.75 exposure 5.53 composite 30.46 vanilla 0.00 hand 5.03 | total 143.94 CPU (ms): voxels 0.08 voxUpload 14.59 emitters 0.01 lightgrid 0.00 lod 0.00 | total 14.68 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/36 voxUpload 35.6/4060 emitters 4.1/1 lightgrid 37.2/4 lod 46.5/6
+[22:09:55] [Client thread/INFO] [PathTrace]: [autoshot] saved 80_hallway_fast
+[22:09:55] [Client thread/INFO] [PathTrace]: [autoshot] shot 80: 81_hallway_fast_direct
+[22:10:03] [Client thread/INFO] [PathTrace]: [autoshot] perf 81_hallway_fast_direct: GPU (ms): copy 0.73 gbuffer 0.00 probe 20.41 direct 0.38 trace 15.35 denoise 46.56 bloom 12.79 exposure 5.11 composite 24.58 vanilla 0.00 hand 4.77 | total 130.69 CPU (ms): voxels 0.08 voxUpload 14.34 emitters 0.00 lightgrid 0.00 lod 0.00 | total 14.43 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/36 voxUpload 35.6/4110 emitters 4.1/1 lightgrid 37.2/4 lod 46.5/6
+[22:10:03] [Client thread/INFO] [PathTrace]: [autoshot] saved 81_hallway_fast_direct
+[22:10:03] [Client thread/INFO] [PathTrace]: [autoshot] shot 81: 82_hallway_fast_bounce
+[22:10:11] [Client thread/INFO] [PathTrace]: [autoshot] perf 82_hallway_fast_bounce: GPU (ms): copy 0.73 gbuffer 0.00 probe 20.46 direct 0.34 trace 15.29 denoise 46.30 bloom 12.71 exposure 4.97 composite 23.70 vanilla 0.00 hand 4.79 | total 129.30 CPU (ms): voxels 0.08 voxUpload 14.33 emitters 0.00 lightgrid 0.00 lod 0.00 | total 14.43 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/36 voxUpload 35.6/4160 emitters 4.1/1 lightgrid 37.2/4 lod 46.5/6
+[22:10:11] [Client thread/INFO] [PathTrace]: [autoshot] saved 82_hallway_fast_bounce
+[22:10:11] [Client thread/INFO] [PathTrace]: [autoshot] shot 82: 83_hall_fast
+[22:10:26] [Client thread/INFO] [PathTrace]: [autoshot] perf 83_hall_fast: GPU (ms): copy 0.75 gbuffer 0.00 probe 21.96 direct 0.26 trace 17.01 denoise 47.76 bloom 12.71 exposure 5.10 composite 28.64 vanilla 0.00 hand 4.65 | total 138.85 CPU (ms): voxels 0.17 voxUpload 13.46 emitters 0.01 lightgrid 0.01 lod 0.01 | total 13.67 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/36 voxUpload 35.6/4250 emitters 4.1/1 lightgrid 37.2/4 lod 46.5/6
+[22:10:26] [Client thread/INFO] [PathTrace]: [autoshot] saved 83_hall_fast
+[22:10:26] [Client thread/INFO] [PathTrace]: [autoshot] shot 83: 84_hall_fast_bounce
+[22:10:35] [Client thread/INFO] [PathTrace]: [autoshot] perf 84_hall_fast_bounce: GPU (ms): copy 0.72 gbuffer 0.00 probe 22.08 direct 0.26 trace 17.02 denoise 47.61 bloom 12.65 exposure 5.08 composite 24.35 vanilla 0.00 hand 4.67 | total 134.44 CPU (ms): voxels 0.09 voxUpload 13.38 emitters 0.01 lightgrid 0.00 lod 0.00 | total 13.49 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/36 voxUpload 35.6/4300 emitters 4.1/1 lightgrid 37.2/4 lod 46.5/6
+[22:10:35] [Client thread/INFO] [PathTrace]: [autoshot] saved 84_hall_fast_bounce
+[22:10:35] [Client thread/INFO] [PathTrace]: [autoshot] shot 84: 85_hall_balanced_bounce
+[22:10:48] [Client thread/INFO] [PathTrace]: [autoshot] perf 85_hall_balanced_bounce: GPU (ms): copy 0.72 gbuffer 0.00 probe 21.59 direct 0.26 trace 45.32 denoise 112.43 bloom 22.13 exposure 5.12 composite 24.32 vanilla 0.00 hand 4.62 | total 236.50 CPU (ms): voxels 0.08 voxUpload 13.06 emitters 0.01 lightgrid 0.00 lod 0.00 | total 13.15 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/36 voxUpload 35.6/4349 emitters 4.1/1 lightgrid 37.2/4 lod 46.5/6
+[22:10:48] [Client thread/INFO] [PathTrace]: [autoshot] saved 85_hall_balanced_bounce
+[22:10:48] [Client thread/INFO] [PathTrace]: [autoshot] shot 85: 86_pool_pathtrace
+[22:11:08] [Client thread/INFO] [PathTrace]: [autoshot] perf 86_pool_pathtrace: GPU (ms): copy 0.72 gbuffer 0.00 probe 16.35 direct 0.35 trace 44.20 denoise 77.15 bloom 18.13 exposure 5.07 composite 24.05 vanilla 0.00 hand 4.60 | total 190.60 CPU (ms): voxels 0.11 voxUpload 12.05 emitters 0.01 lightgrid 0.02 lod 0.03 | total 12.23 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/42 voxUpload 35.6/4434 emitters 4.1/1 lightgrid 37.2/5 lod 46.5/7
+[22:11:08] [Client thread/INFO] [PathTrace]: [autoshot] saved 86_pool_pathtrace
+[22:11:08] [Client thread/INFO] [PathTrace]: [autoshot] shot 86: 87_pool_vanilla
+[22:11:10] [Client thread/INFO] [PathTrace]: [autoshot] saved 87_pool_vanilla
+[22:11:10] [Client thread/INFO] [PathTrace]: [autoshot] shot 87: 88_pool_debug_direct
+[22:11:21] [Client thread/INFO] [PathTrace]: [autoshot] perf 88_pool_debug_direct: GPU (ms): copy 0.70 gbuffer 0.00 probe 16.05 direct 0.34 trace 43.72 denoise 77.50 bloom 18.00 exposure 5.05 composite 20.62 vanilla 0.00 hand 4.60 | total 186.58 CPU (ms): voxels 0.09 voxUpload 12.02 emitters 0.01 lightgrid 0.00 lod 0.00 | total 12.12 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/42 voxUpload 35.6/4484 emitters 4.1/1 lightgrid 37.2/5 lod 46.5/7
+[22:11:21] [Client thread/INFO] [PathTrace]: [autoshot] saved 88_pool_debug_direct
+[22:11:21] [Client thread/INFO] [PathTrace]: [autoshot] shot 88: 89_pool_debug_bounce
+[22:11:31] [Client thread/INFO] [PathTrace]: [autoshot] perf 89_pool_debug_bounce: GPU (ms): copy 0.73 gbuffer 0.00 probe 16.31 direct 0.33 trace 44.32 denoise 77.60 bloom 18.45 exposure 5.11 composite 20.65 vanilla 0.00 hand 4.60 | total 188.10 CPU (ms): voxels 0.08 voxUpload 12.14 emitters 0.00 lightgrid 0.00 lod 0.00 | total 12.23 CPU worst frame (ms) / frames over 4 ms: voxels 49.7/42 voxUpload 35.6/4534 emitters 4.1/1 lightgrid 37.2/5 lod 46.5/7
+[22:11:31] [Client thread/INFO] [PathTrace]: [autoshot] saved 89_pool_debug_bounce
+[22:11:31] [Client thread/INFO] [PathTrace]: [autoshot] done
+[22:11:31] [Client thread/INFO] [minecraft/Minecraft]: Stopping!
+[22:11:31] [Server thread/INFO] [minecraft/MinecraftServer]: Stopping server
+[22:11:31] [Server thread/INFO] [minecraft/MinecraftServer]: Saving players
+[22:11:31] [Server thread/INFO] [minecraft/MinecraftServer]: Saving worlds
+[22:11:31] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'pathtrace_autoshot'/overworld
+[22:11:31] [Server thread/INFO] [FML]: Unloading dimension 0
+[22:11:32] [Server thread/INFO] [FML]: Applying holder lookups
+[22:11:32] [Server thread/INFO] [FML]: Holder lookups applied
+[22:11:32] [Client thread/INFO] [minecraft/SoundManager]: SoundSystem shutting down...
+[22:11:32] [Client thread/WARN] [minecraft/SoundManager]: Author: Paul Lamb, www.paulscode.com
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1795125074952.json
+
+BUILD SUCCESSFUL in 20m 21s
+21 actionable tasks: 21 executed
