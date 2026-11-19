@@ -270,6 +270,7 @@ final class PathTraceRenderer {
         traceSh.set("bounces", PTConfig.bounces);
         traceSh.set("depthTexel", 1f / width, 1f / height);
         traceSh.set("traceRes", (float) traceW, (float) traceH);
+        traceSh.set("checkerboard", PTConfig.checkerboard ? 1f : 0f);
         drawQuad();
 
         perf.mark("trace");

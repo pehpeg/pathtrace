@@ -20,6 +20,9 @@ public class PTConfig {
     @Config.RangeDouble(min = 0.25, max = 1.0)
     public static double directScale = 0.5;
 
+    @Config.Comment("Trace new bounce light for half the pixels each frame (alternating); the rest reuse last frame's. About halves the tracer's cost.")
+    public static boolean checkerboard = true;
+
     @Config.Comment("Frames averaged for bounce/sky light. Higher = smoother, slower to react to changes.")
     @Config.RangeInt(min = 1, max = 256)
     public static int maxAccumulation = 32;

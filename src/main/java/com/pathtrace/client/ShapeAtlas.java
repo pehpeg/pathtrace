@@ -137,6 +137,17 @@ final class ShapeAtlas {
                 u[i] = Float.intBitsToFloat(data[b + uvOff]);
                 v[i] = Float.intBitsToFloat(data[b + uvOff + 1]);
             }
+            // A face lying exactly on a cell border (the top of a 15/16 block like grass path or farmland,
+            // a slab's top...) must fill the cell on the block's side of it, not the empty one above:
+            // otherwise the empty layer over the block counts as solid and every ray skimming the
+            // floor gets blocked at block edges (dark lines along floor seams). So sample half a cell
+            // inwards, against the face's outward normal.
+            float ax = x[1] - x[0], ay = y[1] - y[0], az = z[1] - z[0];
+            float bx = x[2] - x[0], by = y[2] - y[0], bz = z[2] - z[0];
+            float nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+            float nl = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
+            float in = nl > 1e-9f ? 0.5f / RES / nl : 0f;
+            nx *= in; ny *= in; nz *= in;
             for (int si = 0; si < SAMPLES; si++) {
                 float s = (si + 0.5f) / SAMPLES;
                 for (int ti = 0; ti < SAMPLES; ti++) {
@@ -149,7 +160,7 @@ final class ShapeAtlas {
                     float px = x[0] * w0 + x[1] * w1 + x[2] * w2 + x[3] * w3;
                     float py = y[0] * w0 + y[1] * w1 + y[2] * w2 + y[3] * w3;
                     float pz = z[0] * w0 + z[1] * w1 + z[2] * w2 + z[3] * w3;
-                    int cx = cell(px), cy = cell(py), cz = cell(pz);
+                    int cx = cell(px - nx), cy = cell(py - ny), cz = cell(pz - nz);
                     cells[(cz * RES + cy) * RES + cx] = true;
                     any = true;
                 }

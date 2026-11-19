@@ -88,12 +88,13 @@ final class AutoShot {
     private static final double[] PIT = {71.0, 0.0, 18.5}, PIT_T = {71.0, -0.8, 21.5};
     private static final double[] SIGNS = {68.0, 0.0, 19.0}, SIGNS_T = {68.0, 2.5, 23.0};
     private static final double[] HALLWAY = {124.5, 0.0, 2.5}, HALLWAY_T = {124.5, 0.3, 40.0};
+    private static final double[] PATHROOM = {137.0, 1.2, 1.5}, PATHROOM_T = {139.5, -0.5, 6.0};
     private static final double[] CLOUDS = {0.0, 0.0, 0.0}, CLOUDS_T = {40.0, 30.0, 40.0};
     private static final double[] CORRIDOR = {85.5, 0.0, 12.5}, CORRIDOR_T = {110.0, 1.0, 12.5};
 
     /** While iterating on one problem: only take the shots from FOCUS_FROM on. */
-    private static final boolean FOCUS = false;
-    private static final String FOCUS_FROM = "52";
+    private static final boolean FOCUS = true;
+    private static final String FOCUS_FROM = "73";
 
     private static final Shot[] SHOTS = filter(new Shot[] {
             new Shot("01_day_pathtrace", DAY, false, true, false, 0, OUTSIDE, OUTSIDE_T),
@@ -172,6 +173,9 @@ final class AutoShot {
             new Shot("74_hallway_vanilla", NIGHT, false, false, false, 0, HALLWAY, HALLWAY_T),
             new Shot("75_hallway_debug_direct", NIGHT, false, true, false, 1, HALLWAY, HALLWAY_T),
             new Shot("76_hallway_debug_bounce", NIGHT, false, true, false, 2, HALLWAY, HALLWAY_T),
+            new Shot("77_pathfloor_pathtrace", NIGHT, false, true, false, 0, PATHROOM, PATHROOM_T),
+            new Shot("78_pathfloor_vanilla", NIGHT, false, false, false, 0, PATHROOM, PATHROOM_T),
+            new Shot("79_pathfloor_debug_direct", NIGHT, false, true, false, 1, PATHROOM, PATHROOM_T),
     });
 
     private static Shot[] filter(Shot[] all) {
@@ -356,6 +360,16 @@ final class AutoShot {
         set(w, b, 43, 1, 2, Blocks.AIR.getDefaultState());
         for (int y = 0; y <= 3; y++) set(w, b, 45, y, 5, Blocks.STONEBRICK.getDefaultState());
         buildHall(w, b);
+        // a small room with a grass-path floor (15/16 tall) and one glowstone low in the wall
+        for (int x = 134; x <= 142; x++)
+            for (int z = 0; z <= 8; z++)
+                for (int y = -1; y <= 4; y++) {
+                    boolean shell = x == 134 || x == 142 || z == 0 || z == 8 || y == 4;
+                    IBlockState st = y == -1 ? Blocks.GRASS_PATH.getDefaultState()
+                            : shell ? Blocks.STONEBRICK.getDefaultState() : Blocks.AIR.getDefaultState();
+                    set(w, b, x, y, z, st);
+                }
+        set(w, b, 139, 0, 8, Blocks.GLOWSTONE.getDefaultState());
         // a 7-wide hallway, glowstone in both walls at floor level and higher up
         for (int x = 120; x <= 128; x++)
             for (int z = 0; z <= 44; z++)

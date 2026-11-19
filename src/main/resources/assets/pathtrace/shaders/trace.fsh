@@ -21,6 +21,7 @@ uniform float hasHistory;
 uniform float maxAccumIndirect;
 uniform int bounces;
 uniform vec2 traceRes;
+uniform float checkerboard;
 
 uniform sampler2D directTopTex;   // from direct.fsh: the lights it shadowed exactly at this pixel
 uniform sampler2D directAuxTex;   // r = crowding factor
@@ -54,37 +55,6 @@ void main() {
     vec3 N = gb.xyz;
     vec3 origin = P + N * (0.02 + 0.002 * dist);
 
-    // ---------------- indirect: cosine-weighted diffuse bounces
-    vec3 indirect = ambient;
-    vec3 throughput = vec3(1.0);
-    vec3 pos = origin;
-    vec3 nrm = N;
-    for (int b = 0; b < 3; b++) {
-        if (b >= bounces) break;
-        vec3 dir = cosineDirection(nrm);
-        vec3 hc; vec3 hn; float t;
-        float r = traceRay(pos, dir, 1.0e6, hc, hn, t);
-        if (r < 0.5 || r > 1.5) {
-            float vis = r < -0.5 ? 0.5 : escapeVisibility(pos + dir * t);
-            indirect += throughput * skyRadiance(dir) * vis;
-            break;
-        }
-        vec4 v = fetchVoxel(hc);
-        // (no emission here: every block light is already sampled directly as a point light)
-        throughput *= pow(v.rgb, vec3(2.2)) * 0.85;
-        vec3 hp = pos + dir * t + hn * 0.01;
-        vec3 hres;
-        vec3 hl = sampleLights(hp, hn, hp, vec4(-9.0), 1, hres) + hres;
-        float nd = dot(hn, lightDir);
-        if (nd > 0.0) hl += lightColor * nd * sunVisibility(hp);
-        indirect += throughput * hl;
-        pos = hp;
-        nrm = hn;
-    }
-    indirect = min(indirect, vec3(8.0));   // tame fireflies
-    indirect += min(sane(remainingLights(P, N, origin)), vec3(24.0));
-    indirect = sane(indirect);
-
     // ---------------- temporal accumulation (bilinear, geometry-validated reprojection)
     vec4 histI = vec4(0.0);
     float wsum = 0.0;
@@ -110,6 +80,46 @@ void main() {
             }
         }
     }
+
+    // Checkerboard: each frame only half the pixels trace new samples; the others keep their
+    // reprojected history (when it is valid), so the tracer costs about half.
+    if (checkerboard > 0.5 && wsum > 0.05 && mod(floor(gl_FragCoord.x) + floor(gl_FragCoord.y) + frame, 2.0) > 0.5) {
+        vec4 h = histI / wsum;
+        gl_FragData[0] = vec4(sane(h.rgb), h.a);
+        gl_FragData[1] = vec4(N, dist);
+        return;
+    }
+
+    // ---------------- indirect: cosine-weighted diffuse bounces
+    vec3 indirect = ambient;
+    vec3 throughput = vec3(1.0);
+    vec3 pos = origin;
+    vec3 nrm = N;
+    for (int b = 0; b < 3; b++) {
+        if (b >= bounces) break;
+        vec3 dir = cosineDirection(nrm);
+        vec3 hc; vec3 hn; float t;
+        float r = traceRay(pos, dir, 1.0e6, hc, hn, t);
+        if (r < 0.5 || r > 1.5) {
+            float vis = r < -0.5 ? 0.5 : escapeVisibility(pos + dir * t);
+            indirect += throughput * skyRadiance(dir) * vis;
+            break;
+        }
+        vec4 v = fetchVoxel(hc);
+        // (no emission here: every block light is already sampled directly as a point light)
+        throughput *= pow(v.rgb, vec3(2.2)) * 0.85;
+        vec3 hp = pos + dir * t + hn * 0.01;
+        vec3 hres;
+        vec3 hl = sampleLights(hp, hn, hp, vec4(-9.0), 1, hres) + hres;
+        float nd = dot(hn, lightDir);
+        if (nd > 0.0 && dot(lightColor, vec3(0.33)) > 0.03) hl += lightColor * nd * sunVisibility(hp);   // (skip faint moonlight)
+        indirect += throughput * hl;
+        pos = hp;
+        nrm = hn;
+    }
+    indirect = min(indirect, vec3(8.0));   // tame fireflies
+    indirect += min(sane(remainingLights(P, N, origin)), vec3(24.0));
+    indirect = sane(indirect);
 
     vec3 outI = indirect;
     float cI = 1.0;
