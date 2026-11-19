@@ -95,9 +95,11 @@ final class EmitterIndex {
         occupancy.keySet().removeIf(far);
     }
 
+    /** Scan queued sections for at most `budget` sections and ~1.5 ms (chunk loading would otherwise stall frames). */
     void process(World w, int budget) {
         if (w != world) reset(w);
-        while (budget-- > 0 && !queue.isEmpty()) {
+        long deadline = System.nanoTime() + 1_500_000L;
+        while (budget-- > 0 && !queue.isEmpty() && System.nanoTime() < deadline) {
             long k = queue.pollFirst();
             queued.remove(k);
             BlockPos s = BlockPos.fromLong(k);
