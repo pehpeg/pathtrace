@@ -35,6 +35,7 @@ final class TerrainRun {
     private int frames, shots;
     private long lastFrame;
     private double x0, z0, flyY;
+    private volatile int serverGround = -1;
     private final double[] frameMs = new double[100000];
     private int frameCount;
 
@@ -74,16 +75,19 @@ final class TerrainRun {
                 EntityPlayerMP p = server.getPlayerList().getPlayers().get(0);
                 p.capabilities.isFlying = true;
                 p.sendPlayerAbilities();
+                net.minecraft.util.math.BlockPos top = w.getTopSolidOrLiquidBlock(w.getSpawnPoint());
+                serverGround = Math.max(top.getY(), 63);
             });
             x0 = mc.player.posX;
             z0 = mc.player.posZ;
-            flyY = mc.world.getHeight((int) x0, (int) z0) + 12;
+            flyY = 90;
             return;
         }
         if (phase == 1) {
             // chunks arrive while settling: start above the real ground once it's there
             int ground = mc.world.getHeight((int) Math.floor(x0), (int) Math.floor(z0));
             if (ground > 0) flyY = Math.max(ground, 63) + 12;
+            else if (serverGround > 0) flyY = serverGround + 12;
             place(mc, 0.0);
             if (now - phaseStart > SETTLE_MS) {
                 phase = 2;
