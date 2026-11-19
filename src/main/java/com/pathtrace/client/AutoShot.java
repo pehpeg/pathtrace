@@ -94,12 +94,13 @@ final class AutoShot {
     private static final double[] SIGNS = {68.0, 0.0, 19.0}, SIGNS_T = {68.0, 2.5, 23.0};
     private static final double[] HALLWAY = {124.5, 0.0, 2.5}, HALLWAY_T = {124.5, 0.3, 40.0};
     private static final double[] PATHROOM = {137.0, 1.2, 1.5}, PATHROOM_T = {139.5, -0.5, 6.0};
+    private static final double[] POOL = {150.0, 6.0, -4.0}, POOL_T = {160.0, -3.0, 10.0};
     private static final double[] CLOUDS = {0.0, 0.0, 0.0}, CLOUDS_T = {40.0, 30.0, 40.0};
     private static final double[] CORRIDOR = {85.5, 0.0, 12.5}, CORRIDOR_T = {110.0, 1.0, 12.5};
 
     /** While iterating on one problem: only take the shots from FOCUS_FROM on. */
     private static final boolean FOCUS = true;
-    private static final String FOCUS_FROM = "77";
+    private static final String FOCUS_FROM = "86";
 
     private static final Shot[] SHOTS = filter(new Shot[] {
             new Shot("01_day_pathtrace", DAY, false, true, false, 0, OUTSIDE, OUTSIDE_T),
@@ -187,6 +188,10 @@ final class AutoShot {
             new Shot("83_hall_fast", NIGHT, true, true, false, 0, HALL, HALL_T).fast(),
             new Shot("84_hall_fast_bounce", NIGHT, true, true, false, 2, HALL, HALL_T).fast(),
             new Shot("85_hall_balanced_bounce", NIGHT, true, true, false, 2, HALL, HALL_T),
+            new Shot("86_pool_pathtrace", DAY, false, true, false, 0, POOL, POOL_T),
+            new Shot("87_pool_vanilla", DAY, false, false, false, 0, POOL, POOL_T),
+            new Shot("88_pool_debug_direct", DAY, false, true, false, 1, POOL, POOL_T),
+            new Shot("89_pool_debug_bounce", DAY, false, true, false, 2, POOL, POOL_T),
     });
 
     private static Shot[] filter(Shot[] all) {
@@ -373,6 +378,13 @@ final class AutoShot {
         set(w, b, 43, 1, 2, Blocks.AIR.getDefaultState());
         for (int y = 0; y <= 3; y++) set(w, b, 45, y, 5, Blocks.STONEBRICK.getDefaultState());
         buildHall(w, b);
+        // a pool: water over a stepped stone bottom, 1 to 8 blocks deep
+        for (int x = 150; x <= 170; x++)
+            for (int z = 0; z <= 20; z++) {
+                int depth = 1 + (x - 150) * 7 / 20;
+                for (int y = -10; y <= -1; y++)
+                    set(w, b, x, y, z, y >= -depth ? Blocks.WATER.getDefaultState() : Blocks.STONE.getDefaultState());
+            }
         // a small room with a grass-path floor (15/16 tall) and one glowstone low in the wall
         for (int x = 134; x <= 142; x++)
             for (int z = 0; z <= 8; z++)
