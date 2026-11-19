@@ -53,6 +53,7 @@ The **PathTrace...** button on the pause menu, Mods → PathTrace → Config, or
 | `maxAccumulation` | 32 | Frames averaged for bounce/sky light |
 | `pixelShadows` | true | Shadows computed once per block-texture pixel: crisp, pixel-art edges with no flicker |
 | `directScale` | 0.5 | Resolution of the direct light and shadows, upscaled edge-aware. 1.0 = sharpest, 0.5 ≈ 4× cheaper |
+| `checkerboard` | true | Trace bounce light for half the pixels per frame, alternating (about halves the tracer cost) |
 | `shadowedLights` | 3 | Strongest nearby lights that get an exact shadow per pixel (the rest are sampled and denoised) |
 | `lightSaturation` | 1.6 | How coloured block light is (1 = subtle tints) |
 | `denoise` | true | Edge-aware wavelet denoiser |
