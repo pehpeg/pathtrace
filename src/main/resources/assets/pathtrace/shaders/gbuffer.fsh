@@ -24,7 +24,8 @@ float cloudDistance(float d, float depthDist) {
 void main() {
     float d = texture2D(depthTex, uv).r;
     if (d >= 1.0) {
-        gl_FragColor = vec4(0.0);
+        gl_FragData[0] = vec4(0.0);
+        gl_FragData[1] = vec4(0.0);
         return;
     }
     vec3 rel = relPosAt(uv);
@@ -41,7 +42,8 @@ void main() {
         vec3 hcw; vec3 hnw; float tw;
         float rw = traceRay(ro + dir * (depthDist + 0.02), dir, 64.0, hcw, hnw, tw);
         if (rw > 0.5 && rw < 1.5) {
-            gl_FragColor = vec4(hnw, depthDist + 0.02 + tw);
+            gl_FragData[0] = vec4(hnw, depthDist + 0.02 + tw);
+            gl_FragData[1] = vec4(0.02 + tw, 0.0, 0.0, 0.0);   // water the view ray crosses
             return;
         }
     }
@@ -59,7 +61,8 @@ void main() {
         fullHit = shapeIdAt(hc) < 0.5;
     }
     if (fullHit && abs(t - depthDist) < 0.3 + 0.02 * depthDist) {
-        gl_FragColor = vec4(hn, t);
+        gl_FragData[0] = vec4(hn, t);
+        gl_FragData[1] = vec4(0.0);
     } else {
         // clouds aren't in the voxel grid and must not be lit as terrain (they'd turn black): w = 0.
         // A pixel is a cloud if, read with the cloud projection, it sits in the cloud layer, and read
@@ -72,10 +75,12 @@ void main() {
             bool solid = insideVolume(cc) ? isSolid(fetchVoxel(cc))
                        : (lodEnabled > 0.5 && lodInside(cc - lodOrigin) && lodSolid(cc - lodOrigin));
             if (!solid) {
-                gl_FragColor = vec4(0.0);
+                gl_FragData[0] = vec4(0.0);
+        gl_FragData[1] = vec4(0.0);
                 return;
             }
         }
-        gl_FragColor = vec4(surfaceNormal(uv, rel, dir), depthDist);
+        gl_FragData[0] = vec4(surfaceNormal(uv, rel, dir), depthDist);
+        gl_FragData[1] = vec4(0.0);
     }
 }

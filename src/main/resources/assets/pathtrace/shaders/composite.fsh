@@ -19,6 +19,9 @@ uniform float saturation;
 uniform int debugView;
 uniform sampler2D bloomTex;
 uniform float bloomStrength;
+uniform sampler2D waterTex;    // r = blocks of water between the surface and what's lit (0 = none)
+uniform vec3 skyColor;
+uniform vec3 lightColor;
 uniform vec2 directRes;        // resolution the direct light was computed at
 uniform vec2 fullRes;
 
@@ -116,6 +119,15 @@ void main() {
         return;
     }
     vec3 albedo = pow(scene, vec3(2.2));
+    // seen through water: the bottom's light fades with the water in between, replaced by light
+    // scattered in the water itself (so deep water is a dim, even blue rather than a lit sea bed)
+    float wpath = texture2D(waterTex, uv).r;
+    if (wpath > 0.0) {
+        vec3 T = pow(vec3(0.62, 0.78, 0.90), vec3(wpath));
+        vec3 scatter = (skyColor * 0.9 + lightColor * 0.25) * vec3(0.35, 0.6, 0.85);
+        ind = ind * T + scatter * (1.0 - T);
+        dir = dir * T;
+    }
     vec3 c = aces((albedo * (ind + dir) + texture2D(bloomTex, uv).rgb * bloomStrength) * e);
     c = pow(c, vec3(1.0 / 2.2));
     float l = dot(c, vec3(0.2126, 0.7152, 0.0722));

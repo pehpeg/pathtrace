@@ -103,10 +103,11 @@ void main() {
         if (b >= bounces) break;
         vec3 dir = cosineDirection(nrm);
         vec3 hc; vec3 hn; float t;
+        g_trans = vec3(1.0);
         float r = traceRay(pos, dir, 1.0e6, hc, hn, t);
         if (r < 0.5 || r > 1.5) {
             float vis = r < -0.5 ? 0.5 : escapeVisibility(pos + dir * t);
-            indirect += throughput * skyRadiance(dir) * vis;
+            indirect += throughput * skyRadiance(dir) * vis * g_trans;   // (through water/glass: tinted)
             break;
         }
         vec4 v = fetchVoxel(hc);

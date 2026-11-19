@@ -392,6 +392,10 @@ final class PathTraceRenderer {
         compositeSh.set("debugView", PTConfig.debugView);
         bindRaw(8, bloomTex);
         compositeSh.set("bloomTex", 8);
+        bindRaw(9, gbuffer.tex[1]);
+        compositeSh.set("waterTex", 9);
+        compositeSh.set("skyColor", skyColor);
+        compositeSh.set("lightColor", lightColor);
         compositeSh.set("bloomStrength", PTConfig.bloom ? (float) PTConfig.bloomStrength : 0f);
         setGrading(compositeSh);
         drawQuad();
@@ -648,7 +652,7 @@ final class PathTraceRenderer {
             expo[i] = new RenderTarget(1, 1, 1, GL11.GL_NEAREST);
         }
         direct = new RenderTarget(dw, dh, 3, GL11.GL_NEAREST, GL30.GL_RGBA32F);   // light + glow, shadowed light ids, crowding
-        gbuffer = new RenderTarget(w, h, 1, GL11.GL_NEAREST, GL30.GL_RGBA32F);   // 32-bit: distance must be exact
+        gbuffer = new RenderTarget(w, h, 2, GL11.GL_NEAREST, GL30.GL_RGBA32F);   // 32-bit: distance must be exact
         for (int i = 0; i < BLOOM_LEVELS; i++) {
             int bw = Math.max(1, w >> (i + 1)), bh = Math.max(1, h >> (i + 1));
             bloomDown[i] = new RenderTarget(bw, bh, 1, GL11.GL_LINEAR).linear();
