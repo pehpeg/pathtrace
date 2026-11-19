@@ -81,6 +81,7 @@ bool isTint(vec4 v) {
 
 vec3 glassTint(vec4 v) {
     vec3 c = pow(v.rgb, vec3(2.2));
+    if (v.a > 0.33) return c;   // water (A = 96): rgb is the light left after one block
     c /= max(max(c.r, c.g), max(c.b, 1e-3));
     return mix(vec3(1.0), c, 0.85);
 }

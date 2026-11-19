@@ -21,7 +21,8 @@ import java.util.LinkedHashSet;
  * A 128^3 block grid around the camera, uploaded as a 3D texture the shaders ray-march.
  * <ul>
  *   <li>voxel texel: RGB = block colour, A = 128 (solid) | colourIndex << 4 | light level;
- *       A = 64 marks stained glass: not solid, but light passing through takes its colour</li>
+ *       A = 64 marks stained glass: not solid, but light passing through takes its colour;
+ *       A = 96 marks water: light passing through loses some of it per block</li>
  *   <li>coarse texture: one texel per 4x4x4 cell, non-zero if any block in it is solid (empty-space skipping)</li>
  *   <li>height texture: world height per column, so rays leaving the grid know whether they reach the sky</li>
  *   <li>shape texture: for non-full blocks (slabs, stairs, fences, torches, plants...) the number of
@@ -309,6 +310,16 @@ final class VoxelVolume {
                     voxels.put(idx + 3, (byte) 64);
                     shapeIds.putInt(idx, 0);
                 }
+                return;
+            }
+            if (m == Material.WATER) {
+                // water: lets light through but absorbs some per block, more red than blue, so the
+                // bottom of a lake or the sea is dimmer and bluer the deeper it is (A = 96: "absorber")
+                voxels.put(idx, (byte) 224);
+                voxels.put(idx + 1, (byte) 237);
+                voxels.put(idx + 2, (byte) 246);
+                voxels.put(idx + 3, (byte) 96);
+                shapeIds.putInt(idx, 0);
                 return;
             }
             int id = passThrough ? 0 : shapes.shapeFor(world, pos, s);
