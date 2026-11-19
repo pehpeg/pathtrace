@@ -81,6 +81,9 @@ final class TerrainRun {
             return;
         }
         if (phase == 1) {
+            // chunks arrive while settling: start above the real ground once it's there
+            int ground = mc.world.getHeight((int) Math.floor(x0), (int) Math.floor(z0));
+            if (ground > 0) flyY = Math.max(ground, 63) + 12;
             place(mc, 0.0);
             if (now - phaseStart > SETTLE_MS) {
                 phase = 2;
@@ -122,7 +125,7 @@ final class TerrainRun {
     private void place(Minecraft mc, double dist) {
         double x = x0 + dist, z = z0;
         int ground = mc.world.getHeight((int) Math.floor(x + 24), (int) Math.floor(z));
-        if (ground > 0) flyY += ((ground + 10) - flyY) * 0.02;   // follow the terrain smoothly
+        if (ground > 0) flyY += ((Math.max(ground, 63) + 10) - flyY) * 0.02;   // follow the terrain smoothly
         mc.player.setPositionAndRotation(x, flyY, z, -90f, 20f);
         mc.player.motionX = mc.player.motionY = mc.player.motionZ = 0;
         mc.player.capabilities.isFlying = true;
