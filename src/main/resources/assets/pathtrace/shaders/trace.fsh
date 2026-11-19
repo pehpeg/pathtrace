@@ -21,31 +21,20 @@ uniform float hasHistory;
 uniform float maxAccumIndirect;
 uniform int bounces;
 uniform vec2 traceRes;
-uniform int shadowedLights;
 
-// Every point light except the strongest few (those get exact shadows in direct.fsh):
-// one of them is picked in proportion to its contribution and gets a shadow ray that
-// stands in for all of them. Noisy per frame, but it is accumulated and denoised.
+uniform sampler2D directTopTex;   // from direct.fsh: the lights it shadowed exactly at this pixel
+uniform sampler2D directAuxTex;   // r = crowding factor
+
+// Every point light except the ones direct.fsh shadowed exactly: two of them, picked at random,
+// get a shadow ray and stand in for all of them (accumulated over frames and denoised), plus the
+// smooth residual of lights that didn't fit in the light list.
 vec3 remainingLights(vec3 P, vec3 N, vec3 origin) {
-    vec3 own = floor(P - N * 0.25);
-    g_wantRem = true;
-    findTopLights(P, N, insideVolume(own) ? vec3(-1.0e9) : own, 4);
-    g_wantRem = false;
-    // lights beyond shadowedLights are top-4 members direct.fsh doesn't shadow: they're ours too
-    vec3 sum = g_remSum;
-    vec3 resid = g_resid;
-    float scale = g_lightScale;
-    vec3 extra = vec3(0.0);
-    if (shadowedLights < 4 && g_topW3 > 0.0) extra += g_topC3 * lightVisible(origin, lightTarget(origin, g_topP3, g_topB3, vec3(0.0)), g_topB3);
-    if (shadowedLights < 3 && g_topW2 > 0.0) extra += g_topC2 * lightVisible(origin, lightTarget(origin, g_topP2, g_topB2, vec3(0.0)), g_topB2);
-    if (shadowedLights < 2 && g_topW1 > 0.0) extra += g_topC1 * lightVisible(origin, lightTarget(origin, g_topP1, g_topB1, vec3(0.0)), g_topB1);
-    if (shadowedLights < 1 && g_topW0 > 0.0) extra += g_topC0 * lightVisible(origin, lightTarget(origin, g_topP0, g_topB0, vec3(0.0)), g_topB0);
-    vec3 rem = vec3(0.0);
-    if (g_remTotal > 1e-5) {
-        vec3 target = lightTarget(origin, g_remPick, g_remCell, (vec3(rand(), rand(), rand()) - 0.5) * 0.6);
-        rem = sum * lightVisible(origin, target, g_remCell);
-    }
-    return (rem + extra + resid) * scale;
+    vec4 top = texture2D(directTopTex, uv);
+    float scale = texture2D(directAuxTex, uv).r;
+    if (scale <= 0.0) return vec3(0.0);
+    vec3 resid;
+    vec3 s = sampleLights(P, N, origin, top, 2, resid);
+    return (s + resid) * scale;
 }
 
 void main() {
@@ -84,7 +73,8 @@ void main() {
         // (no emission here: every block light is already sampled directly as a point light)
         throughput *= pow(v.rgb, vec3(2.2)) * 0.85;
         vec3 hp = pos + dir * t + hn * 0.01;
-        vec3 hl = pointLights(hp, hn, true);
+        vec3 hres;
+        vec3 hl = sampleLights(hp, hn, hp, vec4(-9.0), 1, hres) + hres;
         float nd = dot(hn, lightDir);
         if (nd > 0.0) hl += lightColor * nd * sunVisibility(hp);
         indirect += throughput * hl;

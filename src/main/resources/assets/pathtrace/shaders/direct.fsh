@@ -36,7 +36,9 @@ vec3 slot(float w, vec4 lp, vec3 c, vec3 blk, vec3 origin) {
 
 void main() {
     if (texture2D(gbufferTex, uv).w <= 0.0) {
-        gl_FragColor = vec4(0.0);
+        gl_FragData[0] = vec4(0.0);
+        gl_FragData[1] = vec4(-1.0);
+        gl_FragData[2] = vec4(0.0);
         return;
     }
     vec4 gb = texture2D(gbufferTex, uv);
@@ -78,6 +80,10 @@ void main() {
                             + slot(g_topW2, g_topP2, g_topC2, g_topB2, origin)
                             + slot(g_topW3, g_topP3, g_topC3, g_topB3, origin));
 
+    // for trace.fsh: which lights got an exact shadow here (it samples the others), and the crowding factor
+    gl_FragData[1] = vec4(g_topW0 > 0.0 ? g_topI0 : -1.0, g_topW1 > 0.0 ? g_topI1 : -1.0,
+                          g_topW2 > 0.0 ? g_topI2 : -1.0, g_topW3 > 0.0 ? g_topI3 : -1.0);
+    gl_FragData[2] = vec4(g_lightScale, 0.0, 0.0, 0.0);
     if (debugView == 4) {
         // r: a ray straight out of the surface is blocked right away (should never happen)
         // g: the surface's own block is a non-full shape;  b: share of the top lights that are visible
@@ -89,14 +95,14 @@ void main() {
         float n = 0.0, v = 0.0;
         if (g_topW0 > 0.0) { n += 1.0; v += luminance(lightVisible(origin, lightTarget(origin, g_topP0, g_topB0, vec3(0.0)), g_topB0)); }
         if (g_topW1 > 0.0) { n += 1.0; v += luminance(lightVisible(origin, lightTarget(origin, g_topP1, g_topB1, vec3(0.0)), g_topB1)); }
-        gl_FragColor = vec4(blockedNow, partial * 0.6, n > 0.0 ? v / n : 0.0, glow);
+        gl_FragData[0] = vec4(blockedNow, partial * 0.6, n > 0.0 ? v / n : 0.0, glow);
         return;
     }
     if (debugView == 5) {
         // lights the light-grid cell offers here (red = list full, so some lights are cut off)
         float full = g_visited >= 32.0 ? 1.0 : 0.0;
-        gl_FragColor = vec4(full, g_visited / 32.0 * (1.0 - full), g_lightScale < 0.999 ? 0.5 : 0.0, glow);
+        gl_FragData[0] = vec4(full, g_visited / 32.0 * (1.0 - full), g_lightScale < 0.999 ? 0.5 : 0.0, glow);
         return;
     }
-    gl_FragColor = vec4(min(sane(direct), vec3(32.0)), glow);
+    gl_FragData[0] = vec4(min(sane(direct), vec3(32.0)), glow);
 }

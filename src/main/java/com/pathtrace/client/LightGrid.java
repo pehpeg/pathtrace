@@ -231,6 +231,15 @@ final class LightGrid {
                         }
                     }
         }
+        // corner 0's w: 1 if the cell has a residual, plus 2 * the number of lights in its list
+        for (int c = 0; c < cells; c++) {
+            int o = c * 8 * 4;
+            boolean any = false;
+            for (int corner = 0; corner < 8; corner++) if (resid[o + corner * 4 + 3] > 0f) { any = true; break; }
+            int n = 0;
+            for (int q = c * K; q < c * K + K; q++) if (cellIdx[q] >= 0) n++;
+            resid[o + 3] = (any ? 1f : 0f) + 2f * n;
+        }
         residBuf.clear();
         residBuf.put(resid);
         while (residBuf.position() < residBuf.capacity()) residBuf.put(0f);

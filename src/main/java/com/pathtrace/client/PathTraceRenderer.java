@@ -226,6 +226,23 @@ final class PathTraceRenderer {
         drawQuad();
 
         perf.mark("probe");
+        // 4b. direct light (at directScale), deterministic
+        direct.bind();
+        directSh.use();
+        setCommon(directSh);
+        bind2D(0, depthTex);
+        directSh.set("depthTex", 0);
+        bind2D(4, gbuffer.tex[0]);
+        directSh.set("gbufferTex", 4);
+        directSh.setMatrix("invProj", invProj);
+        directSh.setMatrix("invView", invView);
+        directSh.set("depthTexel", 1f / width, 1f / height);
+        directSh.set("shadowedLights", PTConfig.shadowedLights);
+        directSh.set("debugView", PTConfig.debugView);
+        directSh.set("pixelShadows", PTConfig.pixelShadows ? 1f : 0f);
+        drawQuad();
+        int dirTex = direct.tex[0];
+        perf.mark("direct");
         // 3. trace
         accum[cur].bind();
         traceSh.use();
@@ -238,7 +255,10 @@ final class PathTraceRenderer {
         traceSh.set("histGeom", 3);
         bind2D(4, gbuffer.tex[0]);
         traceSh.set("gbufferTex", 4);
-        traceSh.set("shadowedLights", PTConfig.shadowedLights);
+        bind2D(1, direct.tex[1]);
+        traceSh.set("directTopTex", 1);
+        bindRaw(15, direct.tex[2]);
+        traceSh.set("directAuxTex", 15);
         traceSh.setMatrix("invProj", invProj);
         traceSh.setMatrix("invView", invView);
         traceSh.setMatrix("prevProj", prevProj);
@@ -272,23 +292,6 @@ final class PathTraceRenderer {
         }
 
         perf.mark("denoise");
-        // 4b. direct light (at directScale), deterministic
-        direct.bind();
-        directSh.use();
-        setCommon(directSh);
-        bind2D(0, depthTex);
-        directSh.set("depthTex", 0);
-        bind2D(4, gbuffer.tex[0]);
-        directSh.set("gbufferTex", 4);
-        directSh.setMatrix("invProj", invProj);
-        directSh.setMatrix("invView", invView);
-        directSh.set("depthTexel", 1f / width, 1f / height);
-        directSh.set("shadowedLights", PTConfig.shadowedLights);
-        directSh.set("debugView", PTConfig.debugView);
-        directSh.set("pixelShadows", PTConfig.pixelShadows ? 1f : 0f);
-        drawQuad();
-        int dirTex = direct.tex[0];
-        perf.mark("direct");
 
         // 4c. bloom from light-source pixels
         int bloomTex = 0;
@@ -635,7 +638,7 @@ final class PathTraceRenderer {
             probe[i] = new RenderTarget(8, 9, 1, GL11.GL_NEAREST);     // 64 directions + sun visibility row
             expo[i] = new RenderTarget(1, 1, 1, GL11.GL_NEAREST);
         }
-        direct = new RenderTarget(dw, dh, 1, GL11.GL_NEAREST);
+        direct = new RenderTarget(dw, dh, 3, GL11.GL_NEAREST, GL30.GL_RGBA32F);   // light + glow, shadowed light ids, crowding
         gbuffer = new RenderTarget(w, h, 1, GL11.GL_NEAREST, GL30.GL_RGBA32F);   // 32-bit: distance must be exact
         for (int i = 0; i < BLOOM_LEVELS; i++) {
             int bw = Math.max(1, w >> (i + 1)), bh = Math.max(1, h >> (i + 1));

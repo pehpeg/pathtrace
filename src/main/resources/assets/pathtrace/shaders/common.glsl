@@ -470,30 +470,41 @@ void visitLight(vec4 lp, vec4 lcw, vec3 p, vec3 n) {
         else feedRem(w, lp, c, blk);
     }
     if (w > g_topW0) {
-        g_topW3 = g_topW2; g_topP3 = g_topP2; g_topC3 = g_topC2; g_topB3 = g_topB2;
-        g_topW2 = g_topW1; g_topP2 = g_topP1; g_topC2 = g_topC1; g_topB2 = g_topB1;
-        g_topW1 = g_topW0; g_topP1 = g_topP0; g_topC1 = g_topC0; g_topB1 = g_topB0;
-        g_topW0 = w; g_topP0 = lp; g_topC0 = c; g_topB0 = blk;
+        g_topW3 = g_topW2; g_topP3 = g_topP2; g_topC3 = g_topC2; g_topB3 = g_topB2; g_topI3 = g_topI2;
+        g_topW2 = g_topW1; g_topP2 = g_topP1; g_topC2 = g_topC1; g_topB2 = g_topB1; g_topI2 = g_topI1;
+        g_topW1 = g_topW0; g_topP1 = g_topP0; g_topC1 = g_topC0; g_topB1 = g_topB0; g_topI1 = g_topI0;
+        g_topW0 = w; g_topP0 = lp; g_topC0 = c; g_topB0 = blk; g_topI0 = g_curIdx;
     } else if (w > g_topW1) {
-        g_topW3 = g_topW2; g_topP3 = g_topP2; g_topC3 = g_topC2; g_topB3 = g_topB2;
-        g_topW2 = g_topW1; g_topP2 = g_topP1; g_topC2 = g_topC1; g_topB2 = g_topB1;
-        g_topW1 = w; g_topP1 = lp; g_topC1 = c; g_topB1 = blk;
+        g_topW3 = g_topW2; g_topP3 = g_topP2; g_topC3 = g_topC2; g_topB3 = g_topB2; g_topI3 = g_topI2;
+        g_topW2 = g_topW1; g_topP2 = g_topP1; g_topC2 = g_topC1; g_topB2 = g_topB1; g_topI2 = g_topI1;
+        g_topW1 = w; g_topP1 = lp; g_topC1 = c; g_topB1 = blk; g_topI1 = g_curIdx;
     } else if (w > g_topW2) {
-        g_topW3 = g_topW2; g_topP3 = g_topP2; g_topC3 = g_topC2; g_topB3 = g_topB2;
-        g_topW2 = w; g_topP2 = lp; g_topC2 = c; g_topB2 = blk;
+        g_topW3 = g_topW2; g_topP3 = g_topP2; g_topC3 = g_topC2; g_topB3 = g_topB2; g_topI3 = g_topI2;
+        g_topW2 = w; g_topP2 = lp; g_topC2 = c; g_topB2 = blk; g_topI2 = g_curIdx;
     } else if (w > g_topW3) {
-        g_topW3 = w; g_topP3 = lp; g_topC3 = c; g_topB3 = blk;
+        g_topW3 = w; g_topP3 = lp; g_topC3 = c; g_topB3 = blk; g_topI3 = g_curIdx;
     }
 }
 
 float g_visited;   // lights the cell list gave us (debug)
+float g_curIdx = -1.0;   // index of the light being visited: >= 0 light list, -2 - i dynamic light i
+float g_topI0, g_topI1, g_topI2, g_topI3;
 vec3 g_resid;      // light added back for lights that didn't fit in the cell's list
 vec4 residAt(float t) {
     return texture2D(residTex, (vec2(mod(t, cellTexSize.x), floor(t / cellTexSize.x)) + 0.5) / vec2(cellTexSize.x, residTexH));
 }
+// corner 0's w = (1 if the cell has a residual) + 2 * (number of lights in its list)
+vec3 residualAt(float cell, vec3 p) {
+    vec3 f = fract((p - gridOrigin) / GRID_CELL);
+    return mix(mix(mix(residAt(cell * 8.0).rgb, residAt(cell * 8.0 + 1.0).rgb, f.x),
+                   mix(residAt(cell * 8.0 + 2.0).rgb, residAt(cell * 8.0 + 3.0).rgb, f.x), f.y),
+               mix(mix(residAt(cell * 8.0 + 4.0).rgb, residAt(cell * 8.0 + 5.0).rgb, f.x),
+                   mix(residAt(cell * 8.0 + 6.0).rgb, residAt(cell * 8.0 + 7.0).rgb, f.x), f.y), f.z);
+}
 bool visitIndex(float idx, vec3 p, vec3 n) {
     if (idx < 0.0) return false;
     g_visited += 1.0;
+    g_curIdx = idx;
     vec2 base = vec2(mod(idx, 128.0) * 2.0, floor(idx / 128.0));
     vec4 lp = texture2D(lightTex, (base + 0.5) / lightTexSize);
     vec4 lcw = texture2D(lightTex, (base + vec2(1.5, 0.5)) / lightTexSize);
@@ -509,10 +520,12 @@ void visitLights(vec3 p, vec3 n) {
     g_sum = vec3(0.0); g_total = 0.0; g_pick = vec4(0.0); g_pickCell = vec3(-1.0e9); g_glow = vec3(0.0);
     g_topB0 = vec3(-1.0e9); g_topB1 = vec3(-1.0e9); g_topB2 = vec3(-1.0e9); g_topB3 = vec3(-1.0e9);
     g_topW0 = 0.0; g_topW1 = 0.0; g_topW2 = 0.0; g_topW3 = 0.0;
+    g_topI0 = -1.0; g_topI1 = -1.0; g_topI2 = -1.0; g_topI3 = -1.0;
     g_topP0 = vec4(0.0); g_topP1 = vec4(0.0); g_topP2 = vec4(0.0); g_topP3 = vec4(0.0);
     g_topC0 = vec3(0.0); g_topC1 = vec3(0.0); g_topC2 = vec3(0.0); g_topC3 = vec3(0.0);
     for (int i = 0; i < MAX_DYN; i++) {
         if (i >= dynLightCount) break;
+        g_curIdx = -2.0 - float(i);
         visitLight(dynLightPos[i], dynLightCol[i], p, n);
     }
     vec3 c = floor((p - gridOrigin) / GRID_CELL);
@@ -528,12 +541,8 @@ void visitLights(vec3 p, vec3 n) {
     }
     // the list was full: add back the lights that didn't fit (smooth, no shadows, no normal)
     vec4 r0 = residAt(cell * 8.0);
-    if (r0.w <= 0.0) return;
-    vec3 f = fract((p - gridOrigin) / GRID_CELL);
-    vec3 r = mix(mix(mix(r0.rgb, residAt(cell * 8.0 + 1.0).rgb, f.x),
-                     mix(residAt(cell * 8.0 + 2.0).rgb, residAt(cell * 8.0 + 3.0).rgb, f.x), f.y),
-                 mix(mix(residAt(cell * 8.0 + 4.0).rgb, residAt(cell * 8.0 + 5.0).rgb, f.x),
-                     mix(residAt(cell * 8.0 + 6.0).rgb, residAt(cell * 8.0 + 7.0).rgb, f.x), f.y), f.z);
+    if (mod(r0.w, 2.0) < 0.5) return;
+    vec3 r = residualAt(cell, p);
     g_resid = r;
     g_sum += r;
     g_total += luminance(r);
@@ -611,6 +620,77 @@ vec3 pointLights(vec3 p, vec3 n, bool shadows) {
     if (g_total <= 1e-5 || !shadows) return g_sum * k;
     vec3 target = lightTarget(p, g_pick, g_pickCell, (vec3(rand(), rand(), rand()) - 0.5) * 0.6);
     return g_sum * k * lightVisible(p, target, g_pickCell);
+}
+
+// ------------------------------------------------------------------ sampled point lights
+// Instead of looping over a cell's whole list (up to 32 lights + dynamic ones), pick a few at random:
+// unbiased, noisier, so only for the accumulated + denoised bounce/indirect pass.
+
+float lightCellOf(vec3 p) {
+    vec3 c = floor((p - gridOrigin) / GRID_CELL);
+    if (any(lessThan(c, vec3(0.0))) || any(greaterThanEqual(c, gridCells))) return -1.0;
+    return (c.z * gridCells.y + c.y) * gridCells.x + c.x;
+}
+
+float listEntry(float cell, float k) {
+    float t = cell * 8.0 + floor(k / 4.0);
+    vec4 ids = texture2D(cellTex, (vec2(mod(t, cellTexSize.x), floor(t / cellTexSize.x)) + 0.5) / cellTexSize);
+    float m = mod(k, 4.0);
+    return m < 0.5 ? ids.x : (m < 1.5 ? ids.y : (m < 2.5 ? ids.z : ids.w));
+}
+
+// which: >= 0 light-list index, -2 - i dynamic light i
+void fetchLight(float which, out vec4 lp, out vec4 lcw) {
+    if (which < -1.5) {
+        int i = int(-2.0 - which + 0.5);
+        lp = dynLightPos[i];
+        lcw = dynLightCol[i];
+        return;
+    }
+    vec2 base = vec2(mod(which, 128.0) * 2.0, floor(which / 128.0));
+    lp = texture2D(lightTex, (base + 0.5) / lightTexSize);
+    lcw = texture2D(lightTex, (base + vec2(1.5, 0.5)) / lightTexSize);
+    lp.xyz += gridOrigin;
+}
+
+// One light at p, with a shadow ray from origin (aimed at a random point of its open face).
+vec3 oneLight(float which, vec3 p, vec3 n, vec3 origin) {
+    vec4 lp; vec4 lcw;
+    fetchLight(which, lp, lcw);
+    vec3 blk = lightBlock(lp.xyz, lightCode(lcw.w));
+    float faces = lightFaces(lcw.w);
+    if (faces > 0.5 && !facesToward(faces, blk, p)) return vec3(0.0);
+    vec3 c;
+    float w = lightTerm(lp, lcw.rgb, lightRange(lp, lcw.w), p, n, c);
+    if (w <= 0.0) return vec3(0.0);
+    lp.w = faces;
+    vec3 target = lightTarget(origin, lp, blk, (vec3(rand(), rand(), rand()) - 0.5) * 0.6);
+    return c * lightVisible(origin, target, blk);
+}
+
+// `samples` (1 or 2) lights picked uniformly from p's list + the dynamic lights, skipping the ones
+// in `excl` (already shadowed exactly by direct.fsh). resid = smooth light of lights not in the list.
+vec3 sampleLights(vec3 p, vec3 n, vec3 origin, vec4 excl, int samples, out vec3 resid) {
+    resid = vec3(0.0);
+    float cell = lightCellOf(p);
+    float cnt = 0.0;
+    if (cell >= 0.0) {
+        float w0 = residAt(cell * 8.0).w;
+        cnt = floor(w0 / 2.0);
+        if (mod(w0, 2.0) > 0.5) resid = residualAt(cell, p);
+    }
+    float total = float(dynLightCount) + cnt;
+    if (total < 0.5) return vec3(0.0);
+    vec3 sum = vec3(0.0);
+    for (int s = 0; s < 2; s++) {
+        if (s >= samples) break;
+        float k = min(floor(rand() * total), total - 1.0);
+        float which = k < float(dynLightCount) ? -2.0 - k : listEntry(cell, k - float(dynLightCount));
+        if (which > -1.5 && which < -0.5) continue;
+        if (which == excl.x || which == excl.y || which == excl.z || which == excl.w) continue;
+        sum += oneLight(which, p, n, origin);
+    }
+    return sum * total / float(samples);
 }
 
 // 64 fixed directions on a sphere (Fibonacci), shared by the eye probe and the hand pass.
