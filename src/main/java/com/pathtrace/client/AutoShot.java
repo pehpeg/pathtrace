@@ -54,6 +54,11 @@ final class AutoShot {
             bloom = false;
             return this;
         }
+        boolean fast;
+        Shot fast() {
+            fast = true;
+            return this;
+        }
     }
 
     // camera positions relative to the scene origin (feet position) and look-at targets
@@ -93,8 +98,8 @@ final class AutoShot {
     private static final double[] CORRIDOR = {85.5, 0.0, 12.5}, CORRIDOR_T = {110.0, 1.0, 12.5};
 
     /** While iterating on one problem: only take the shots from FOCUS_FROM on. */
-    private static final boolean FOCUS = false;
-    private static final String FOCUS_FROM = "52";
+    private static final boolean FOCUS = true;
+    private static final String FOCUS_FROM = "73";
 
     private static final Shot[] SHOTS = filter(new Shot[] {
             new Shot("01_day_pathtrace", DAY, false, true, false, 0, OUTSIDE, OUTSIDE_T),
@@ -176,6 +181,12 @@ final class AutoShot {
             new Shot("77_pathfloor_pathtrace", NIGHT, false, true, false, 0, PATHROOM, PATHROOM_T),
             new Shot("78_pathfloor_vanilla", NIGHT, false, false, false, 0, PATHROOM, PATHROOM_T),
             new Shot("79_pathfloor_debug_direct", NIGHT, false, true, false, 1, PATHROOM, PATHROOM_T),
+            new Shot("80_hallway_fast", NIGHT, false, true, false, 0, HALLWAY, HALLWAY_T).fast(),
+            new Shot("81_hallway_fast_direct", NIGHT, false, true, false, 1, HALLWAY, HALLWAY_T).fast(),
+            new Shot("82_hallway_fast_bounce", NIGHT, false, true, false, 2, HALLWAY, HALLWAY_T).fast(),
+            new Shot("83_hall_fast", NIGHT, true, true, false, 0, HALL, HALL_T).fast(),
+            new Shot("84_hall_fast_bounce", NIGHT, true, true, false, 2, HALL, HALL_T).fast(),
+            new Shot("85_hall_balanced_bounce", NIGHT, true, true, false, 2, HALL, HALL_T),
     });
 
     private static Shot[] filter(Shot[] all) {
@@ -259,6 +270,8 @@ final class AutoShot {
         PTConfig.debugView = shot.debug;
         PTConfig.lodShadows = shot.lod;
         PTConfig.bloom = shot.bloom;
+        if (shot.fast) { PTConfig.renderScale = 0.33; PTConfig.directScale = 0.33; PTConfig.shadowedLights = 1; PTConfig.lightSamples = 1; }
+        else { PTConfig.renderScale = 0.5; PTConfig.directScale = 0.5; PTConfig.shadowedLights = 3; PTConfig.lightSamples = 2; }
         ClientHandler.setEnabled(shot.enabled);
         if (prev == null || prev.time != shot.time || prev.cam != shot.cam || prev.torch != shot.torch) {
             setupScene(mc.getIntegratedServer(), shot);
