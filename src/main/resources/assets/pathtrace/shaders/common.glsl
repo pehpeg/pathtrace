@@ -446,6 +446,27 @@ bool facesToward(float mask, vec3 blk, vec3 p) {
     return false;
 }
 
+// A glowing block shines from its open faces: light p from just outside the open face that looks at it
+// most directly. (From the block's middle, a glowstone set into a wall would sit behind the wall
+// around it, and the wall next to it would get no light at all.)
+vec3 faceLightPos(float mask, vec3 blk, vec3 p) {
+    vec3 c = blk + 0.5;
+    vec3 d = p - c;
+    float best = -1.0e9;
+    vec3 bn = vec3(0.0);
+    float m = mask;
+    for (int i = 0; i < 6; i++) {
+        vec3 fn = i == 0 ? vec3(0.0, -1.0, 0.0) : i == 1 ? vec3(0.0, 1.0, 0.0) : i == 2 ? vec3(0.0, 0.0, -1.0)
+                : i == 3 ? vec3(0.0, 0.0, 1.0) : i == 4 ? vec3(-1.0, 0.0, 0.0) : vec3(1.0, 0.0, 0.0);
+        if (mod(m, 2.0) > 0.5) {
+            float s = dot(d, fn);
+            if (s > best) { best = s; bn = fn; }
+        }
+        m = floor(m / 2.0);
+    }
+    return c + bn * LIGHT_PUSH;
+}
+
 void visitLight(vec4 lp, vec4 lcw, vec3 p, vec3 n) {
     vec3 lc = lcw.rgb;
     vec3 blk = lightBlock(lp.xyz, lightCode(lcw.w));
@@ -460,6 +481,7 @@ void visitLight(vec4 lp, vec4 lcw, vec3 p, vec3 n) {
     vec3 c;
     float faces = lightFaces(lcw.w);
     if (faces > 0.5 && !facesToward(faces, blk, p)) return;   // all its open faces look away from p
+    if (faces > 0.5) lp.xyz = faceLightPos(faces, blk, p);
     float w = lightTerm(lp, lc, range, p, n, c);
     lp.w = faces;   // from here on lp.w carries the open-face mask (for lightTarget)
     if (w <= 0.0) return;
@@ -660,6 +682,7 @@ vec3 oneLight(float which, vec3 p, vec3 n, vec3 origin) {
     vec3 blk = lightBlock(lp.xyz, lightCode(lcw.w));
     float faces = lightFaces(lcw.w);
     if (faces > 0.5 && !facesToward(faces, blk, p)) return vec3(0.0);
+    if (faces > 0.5) lp.xyz = faceLightPos(faces, blk, p);
     vec3 c;
     float w = lightTerm(lp, lcw.rgb, lightRange(lp, lcw.w), p, n, c);
     if (w <= 0.0) return vec3(0.0);
