@@ -69,12 +69,15 @@ void main() {
         // as terrain there is no block behind it.
         float dc = cloudDistance(d, depthDist);
         vec3 Pc = ro + dir * dc;
-        float tol = 0.5 + 0.01 * dc;
+        float tol = 2.0 + 0.05 * dc;   // generous: drivers and mods differ in how clouds are projected
         if (Pc.y > cloudY - tol && Pc.y < cloudY + 4.0 + tol) {
-            vec3 cc = floor(ro + dir * (depthDist + 0.05));
+            vec3 Pt = ro + dir * (depthDist + 0.05);
+            vec3 cc = floor(Pt);
             bool solid = insideVolume(cc) ? isSolid(fetchVoxel(cc))
                        : (lodEnabled > 0.5 && lodInside(cc - lodOrigin) && lodSolid(cc - lodOrigin));
-            if (!solid) {
+            // read as terrain, the point must also be clearly above the ground there (mobs stay lit)
+            bool aboveGround = escapeVisibility(Pt + vec3(0.0, -3.0, 0.0)) > 0.5;
+            if (!solid && aboveGround) {
                 gl_FragData[0] = vec4(0.0);
         gl_FragData[1] = vec4(0.0);
                 return;
