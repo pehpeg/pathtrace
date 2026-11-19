@@ -238,8 +238,6 @@ final class PathTraceRenderer {
         directSh.setMatrix("invView", invView);
         directSh.set("depthTexel", 1f / width, 1f / height);
         directSh.set("shadowedLights", PTConfig.shadowedLights);
-        // the direct pass only needs the strongest few; the rest are sampled by the trace pass
-        directSh.set("listLimit", 12f);
         directSh.set("debugView", PTConfig.debugView);
         directSh.set("pixelShadows", PTConfig.pixelShadows ? 1f : 0f);
         drawQuad();
@@ -492,7 +490,6 @@ final class PathTraceRenderer {
         s.set("ambient", ambient);
         s.set("emissiveStrength", (float) PTConfig.emissiveStrength);
         s.set("lightSaturation", (float) PTConfig.lightSaturation);
-        s.set("listLimit", 1.0e9f);
         s.set("frame", (float) (frame % 1024));
         s.setVec4Array("dynLightPos", lights.pos);
         s.setVec4Array("dynLightCol", lights.col);

@@ -518,9 +518,12 @@ vec3 residualAt(float cell, vec3 p) {
                mix(mix(residAt(cell * 8.0 + 4.0).rgb, residAt(cell * 8.0 + 5.0).rgb, f.x),
                    mix(residAt(cell * 8.0 + 6.0).rgb, residAt(cell * 8.0 + 7.0).rgb, f.x), f.y), f.z);
 }
-uniform float listLimit;   // visit at most this many list entries (lists are sorted strongest first)
+// visit at most this many list entries (lists are sorted strongest first); direct.fsh sets it lower
+#ifndef LIST_LIMIT
+#define LIST_LIMIT 1000.0
+#endif
 bool visitIndex(float idx, vec3 p, vec3 n) {
-    if (idx < 0.0 || g_visited >= listLimit) return false;
+    if (idx < 0.0 || g_visited >= LIST_LIMIT) return false;
     g_visited += 1.0;
     g_curIdx = idx;
     vec2 base = vec2(mod(idx, 128.0) * 2.0, floor(idx / 128.0));

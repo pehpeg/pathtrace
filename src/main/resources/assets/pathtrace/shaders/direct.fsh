@@ -8,6 +8,7 @@
 // Alpha = how strongly this pixel is itself a light source (feeds the bloom).
 // With pixelShadows, rays start from the centre of the block-texture pixel, so every screen
 // pixel inside one texture pixel gets the identical answer (idea from Vibrancy, MIT).
+#define LIST_LIMIT 12.0   // only the strongest few matter here; trace.fsh samples the rest
 #include "common.glsl"
 #include "geometry.glsl"
 
