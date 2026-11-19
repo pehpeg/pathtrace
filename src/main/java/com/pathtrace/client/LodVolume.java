@@ -33,6 +33,8 @@ final class LodVolume {
     void invalidate() {
         built = false;
         rebuilding = false;
+        seen.clear();
+        fading.clear();
     }
 
     void update(EmitterIndex index, double cx, double cz, int renderDistanceChunks) {
@@ -85,7 +87,49 @@ final class LodVolume {
         Long k;
         while (budget-- > 0 && System.nanoTime() < deadline && (k = index.pollChangedOccupancy()) != null) {
             BlockPos s = BlockPos.fromLong(k);
+            long col = colKey(s.getX(), s.getZ());
+            // the first data from a chunk column (it just loaded): its shadows fade in
+            if (!seen.contains(col) && index.occupancy(s.getX(), s.getY(), s.getZ()) != null && !fading.containsKey(col))
+                fading.put(col, 0f);
             if (fillSection(index, s.getX(), s.getY(), s.getZ())) upload(s.getX(), s.getY(), s.getZ());
+        }
+        stepFades();
+    }
+
+    // ---- fade-in of newly loaded chunks: their coarse texels go 55 -> 255 over FADE_FRAMES
+    private static final int FADE_FRAMES = 45;
+    private final java.util.HashSet<Long> seen = new java.util.HashSet<>();
+    private final java.util.HashMap<Long, Float> fading = new java.util.HashMap<>();
+
+    private static long colKey(int sx, int sz) {
+        return ((long) sx << 32) ^ (sz & 0xFFFFFFFFL);
+    }
+
+    private byte presence(long col) {
+        Float f = fading.get(col);
+        return (byte) (f == null ? 255 : 55 + Math.round(200 * f));
+    }
+
+    private void stepFades() {
+        if (fading.isEmpty()) return;
+        int cw = extent / 8, ch = HEIGHT / 8;
+        java.util.Iterator<java.util.Map.Entry<Long, Float>> it = fading.entrySet().iterator();
+        while (it.hasNext()) {
+            java.util.Map.Entry<Long, Float> e = it.next();
+            float f = Math.min(1f, e.getValue() + 1f / FADE_FRAMES);
+            long col = e.getKey();
+            int sx = (int) (col >> 32), sz = (int) col;
+            int bx = (sx << 4) - ox, bz = (sz << 4) - oz;
+            if (f >= 1f) it.remove(); else e.setValue(f);
+            if (bx < 0 || bz < 0 || bx >= extent || bz >= extent) continue;
+            byte v = presence(col);
+            for (int cz = bz / 8; cz < bz / 8 + 2; cz++)
+                for (int cy = 0; cy < ch; cy++)
+                    for (int cx = bx / 8; cx < bx / 8 + 2; cx++) {
+                        int i = (cz * ch + cy) * cw + cx;
+                        if (coarse.get(i) != 0) coarse.put(i, v);
+                    }
+            uploadBox(coarse, coarseTex, bx / 8, 0, bz / 8, 2, ch, 2, cw, ch);
         }
     }
 
@@ -137,7 +181,8 @@ final class LodVolume {
             for (int cy = 0; cy < 2; cy++)
                 for (int cx = 0; cx < 2; cx++)
                     coarse.put(((bz / 8 + cz) * ch + (by / 8 + cy)) * cw + bx / 8 + cx,
-                            coarseSolid[(cz * 2 + cy) * 2 + cx] ? (byte) 255 : 0);
+                            coarseSolid[(cz * 2 + cy) * 2 + cx] ? presence(colKey(sx, sz)) : 0);
+        if (mask != null) seen.add(colKey(sx, sz));
         return true;
     }
 

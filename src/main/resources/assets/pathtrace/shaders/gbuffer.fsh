@@ -8,6 +8,7 @@
 #include "geometry.glsl"
 
 varying vec2 uv;
+uniform sampler2D sceneTex;
 uniform float cloudY;   // volume space, -1e9 when clouds are off
 uniform float projNear, projFar;   // of the terrain projection; clouds are drawn with far * 2*sqrt(2)
 
@@ -67,19 +68,27 @@ void main() {
         // clouds aren't in the voxel grid and must not be lit as terrain (they'd turn black): w = 0.
         // A pixel is a cloud if, read with the cloud projection, it sits in the cloud layer, and read
         // as terrain there is no block behind it.
+        // Two tests, either is enough: (1) read with the cloud projection, the pixel sits in the cloud
+        // layer; (2) it's drawn in a cloud's flat white-grey. Plus, read as terrain, there must be no
+        // block at or under the point (mobs, items, snow... stay lit).
         float dc = cloudDistance(d, depthDist);
         vec3 Pc = ro + dir * dc;
-        float tol = 2.0 + 0.05 * dc;   // generous: drivers and mods differ in how clouds are projected
-        if (Pc.y > cloudY - tol && Pc.y < cloudY + 4.0 + tol) {
+        float tol = 2.0 + 0.05 * dc;
+        bool inBand = Pc.y > cloudY - tol && Pc.y < cloudY + 4.0 + tol;
+        vec3 sc = texture2D(sceneTex, uv).rgb;
+        bool cloudColour = min(sc.r, min(sc.g, sc.b)) > 0.45 && max(sc.r, max(sc.g, sc.b)) - min(sc.r, min(sc.g, sc.b)) < 0.1;
+        if (cloudY > -1.0e8 && (inBand || cloudColour)) {
             vec3 Pt = ro + dir * (depthDist + 0.05);
-            vec3 cc = floor(Pt);
-            bool solid = insideVolume(cc) ? isSolid(fetchVoxel(cc))
-                       : (lodEnabled > 0.5 && lodInside(cc - lodOrigin) && lodSolid(cc - lodOrigin));
-            // read as terrain, the point must also be clearly above the ground there (mobs stay lit)
-            bool aboveGround = escapeVisibility(Pt + vec3(0.0, -3.0, 0.0)) > 0.5;
-            if (!solid && aboveGround) {
+            bool solid = false;
+            for (int k = 0; k < 3; k++) {
+                vec3 cc = floor(Pt) - vec3(0.0, float(k), 0.0);
+                solid = solid || (insideVolume(cc) ? isSolid(fetchVoxel(cc))
+                                 : (lodEnabled > 0.5 && lodInside(cc - lodOrigin) && lodSolid(cc - lodOrigin)));
+            }
+            bool high = Pt.y + originY > 80.0;   // clouds never come lower than this
+            if (!solid && (inBand || high)) {
                 gl_FragData[0] = vec4(0.0);
-        gl_FragData[1] = vec4(0.0);
+                gl_FragData[1] = vec4(0.0);
                 return;
             }
         }

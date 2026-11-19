@@ -25,7 +25,7 @@ vec3 sunVisibilityHard(vec3 p) {
     if (r > 0.5 && r < 1.5) return vec3(0.0);
     if (r < -0.5) return g_trans;
     // left the detailed grid (or started outside it): continue in the far grid
-    if (lodEnabled > 0.5) return lodBlocked(p + lightDir * t, lightDir, 1.0e6, t > 0.0, vec3(-1.0e9)) ? vec3(0.0) : g_trans;
+    if (lodEnabled > 0.5) return lodBlocked(p + lightDir * t, lightDir, 1.0e6, t > 0.0, vec3(-1.0e9)) ? vec3(0.0) : g_trans * g_lodT;
     return g_trans * escapeVisibility(p + lightDir * t);
 }
 

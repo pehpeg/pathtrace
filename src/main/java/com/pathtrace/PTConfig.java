@@ -20,8 +20,8 @@ public class PTConfig {
     @Config.RangeDouble(min = 0.25, max = 1.0)
     public static double directScale = 0.5;
 
-    @Config.Comment("Smooth shadows over a few frames (anti-aliased edges, no crawling or flicker, new shadows fade in).")
-    public static boolean temporalShadows = true;
+    @Config.Comment("Experimental: jitter shadows and blend them over a few frames (softer edges, can shimmer).")
+    public static boolean temporalShadows = false;
 
     @Config.Comment("Trace new bounce light for half the pixels each frame (alternating); the rest reuse last frame's. About halves the tracer's cost.")
     public static boolean checkerboard = true;

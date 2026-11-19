@@ -267,13 +267,22 @@ bool lodSolid(vec3 c) {
 }
 
 bool lodCoarseEmpty(vec3 c) {
-    return texture3D(lodCoarseTex, (floor(c / 8.0) + 0.5) / (lodSize / 8.0)).r < 0.5;
+    return texture3D(lodCoarseTex, (floor(c / 8.0) + 0.5) / (lodSize / 8.0)).r < 0.5 / 255.0;
 }
+
+// Newly loaded chunks fade their shadows in: the coarse texel of a solid region holds 55..255 for
+// how far the chunk's fade-in has got (LodVolume). Blocks in fading chunks only partly block.
+float lodPresence(vec3 c) {
+    float v = texture3D(lodCoarseTex, (floor(c / 8.0) + 0.5) / (lodSize / 8.0)).r * 255.0;
+    return clamp((v - 55.0) / 200.0, 0.0, 1.0);
+}
+float g_lodT = 1.0;   // light let through by fading blocks along the last lodBlocked ray
 
 // True if the far grid blocks the segment p -> p + dir * maxT. The start block is checked only if
 // checkStart (when continuing a ray from the detailed grid); hits on targetCell (a light's own block)
 // don't count. Jumps over empty 8x8x8 regions.
 bool lodBlocked(vec3 p, vec3 dir, float maxT, bool checkStart, vec3 targetCell) {
+    g_lodT = 1.0;
     if (lodEnabled < 0.5 || maxT <= 0.0) return false;
     vec3 ro = p - lodOrigin;
     vec3 tc = targetCell - lodOrigin;
@@ -308,7 +317,12 @@ bool lodBlocked(vec3 p, vec3 dir, float maxT, bool checkStart, vec3 targetCell) 
         }
         if (t > maxT) return false;
         if (!lodInside(cell)) return false;
-        if (lodSolid(cell) && any(notEqual(cell, tc))) return true;
+        if (lodSolid(cell) && any(notEqual(cell, tc))) {
+            float pr = lodPresence(cell);
+            if (pr > 0.99) return true;
+            g_lodT *= 1.0 - pr;
+            if (g_lodT < 0.01) return true;
+        }
     }
     return false;
 }
@@ -346,7 +360,7 @@ vec3 sunVisibility(vec3 p) {
     float r = traceRay(p, d, 1.0e6, hc, hn, t);
     if (r > 0.5 && r < 1.5) return vec3(0.0);
     if (r < -0.5) return g_trans;
-    if (lodEnabled > 0.5) return lodBlocked(p + d * t, d, 1.0e6, t > 0.0, vec3(-1.0e9)) ? vec3(0.0) : g_trans;
+    if (lodEnabled > 0.5) return lodBlocked(p + d * t, d, 1.0e6, t > 0.0, vec3(-1.0e9)) ? vec3(0.0) : g_trans * g_lodT;
     return g_trans * escapeVisibility(p + d * t);
 }
 
