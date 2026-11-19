@@ -7,12 +7,14 @@ uniform sampler2D sceneTex;
 uniform sampler2D indirectTex;
 uniform sampler2D directTex;
 uniform sampler2D depthTex;
+uniform sampler2D gbufferTex;   // w = 0: not a lit surface (sky, clouds)
 
 void main() {
     // Exposure follows how much LIGHT there is, not how bright the surfaces are: a black sheep or a
     // white wall filling the screen must not change it. Surfaces count as middle grey (18%).
     vec3 c = pow(texture2D(sceneTex, uv).rgb, vec3(2.2));   // sky: as drawn
-    if (texture2D(depthTex, uv).r < 1.0) {
+    // clouds have depth but aren't lit surfaces (no light values): count them like the sky
+    if (texture2D(depthTex, uv).r < 1.0 && texture2D(gbufferTex, uv).w > 0.0) {
         c = 0.18 * (texture2D(indirectTex, uv).rgb + texture2D(directTex, uv).rgb);
     }
     float l = dot(c, vec3(0.2126, 0.7152, 0.0722));

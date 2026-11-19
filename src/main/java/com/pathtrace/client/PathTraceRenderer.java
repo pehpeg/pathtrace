@@ -347,6 +347,8 @@ final class PathTraceRenderer {
             lumSh.set("indirectTex", 2);
             lumSh.set("directTex", 3);
             lumSh.set("depthTex", 4);
+            bind2D(5, gbuffer.tex[0]);
+            lumSh.set("gbufferTex", 5);
             drawQuad();
             bind2D(2, lum.tex[0]);
             GL30.glGenerateMipmap(GL11.GL_TEXTURE_2D);
