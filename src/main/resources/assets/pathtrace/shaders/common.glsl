@@ -208,17 +208,17 @@ float traceRay(vec3 ro, vec3 rd, float maxT, out vec3 hitCell, out vec3 hitNorma
             if (tb.x < tb.y && tb.x < tb.z) {
                 te = tb.x;
                 hitNormal = vec3(-stp.x, 0.0, 0.0);
-                cell = floor(ro + rd * te);
+                cell = clamp(floor(ro + rd * te), cb, cb + 3.0);   // stays in the empty cell on the other axes
                 cell.x = stp.x > 0.0 ? cb.x + 4.0 : cb.x - 1.0;
             } else if (tb.y < tb.z) {
                 te = tb.y;
                 hitNormal = vec3(0.0, -stp.y, 0.0);
-                cell = floor(ro + rd * te);
+                cell = clamp(floor(ro + rd * te), cb, cb + 3.0);   // stays in the empty cell on the other axes
                 cell.y = stp.y > 0.0 ? cb.y + 4.0 : cb.y - 1.0;
             } else {
                 te = tb.z;
                 hitNormal = vec3(0.0, 0.0, -stp.z);
-                cell = floor(ro + rd * te);
+                cell = clamp(floor(ro + rd * te), cb, cb + 3.0);   // stays in the empty cell on the other axes
                 cell.z = stp.z > 0.0 ? cb.z + 4.0 : cb.z - 1.0;
             }
             hitT = max(te, hitT);
@@ -285,11 +285,11 @@ bool lodBlocked(vec3 p, vec3 dir, float maxT, bool checkStart, vec3 targetCell) 
             vec3 cb = floor(cell / 8.0) * 8.0;
             vec3 tb = abs(cb + sgn * 8.0 - ro) * invd;
             if (tb.x < tb.y && tb.x < tb.z) {
-                t = tb.x; cell = floor(ro + dir * t); cell.x = stp.x > 0.0 ? cb.x + 8.0 : cb.x - 1.0;
+                t = tb.x; cell = clamp(floor(ro + dir * t), cb, cb + 7.0); cell.x = stp.x > 0.0 ? cb.x + 8.0 : cb.x - 1.0;
             } else if (tb.y < tb.z) {
-                t = tb.y; cell = floor(ro + dir * t); cell.y = stp.y > 0.0 ? cb.y + 8.0 : cb.y - 1.0;
+                t = tb.y; cell = clamp(floor(ro + dir * t), cb, cb + 7.0); cell.y = stp.y > 0.0 ? cb.y + 8.0 : cb.y - 1.0;
             } else {
-                t = tb.z; cell = floor(ro + dir * t); cell.z = stp.z > 0.0 ? cb.z + 8.0 : cb.z - 1.0;
+                t = tb.z; cell = clamp(floor(ro + dir * t), cb, cb + 7.0); cell.z = stp.z > 0.0 ? cb.z + 8.0 : cb.z - 1.0;
             }
             tMax = abs(cell + sgn - ro) * invd;
         } else {

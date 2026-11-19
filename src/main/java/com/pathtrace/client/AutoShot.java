@@ -87,12 +87,13 @@ final class AutoShot {
     private static final double[] HALL = {63.0, 0.0, 12.0}, HALL_T = {72.0, 0.5, 22.0};
     private static final double[] PIT = {71.0, 0.0, 18.5}, PIT_T = {71.0, -0.8, 21.5};
     private static final double[] SIGNS = {68.0, 0.0, 19.0}, SIGNS_T = {68.0, 2.5, 23.0};
+    private static final double[] HALLWAY = {124.5, 0.0, 2.5}, HALLWAY_T = {124.5, 0.3, 40.0};
     private static final double[] CLOUDS = {0.0, 0.0, 0.0}, CLOUDS_T = {40.0, 30.0, 40.0};
     private static final double[] CORRIDOR = {85.5, 0.0, 12.5}, CORRIDOR_T = {110.0, 1.0, 12.5};
 
     /** While iterating on one problem: only take the shots from FOCUS_FROM on. */
-    private static final boolean FOCUS = false;
-    private static final String FOCUS_FROM = "69";
+    private static final boolean FOCUS = true;
+    private static final String FOCUS_FROM = "73";
 
     private static final Shot[] SHOTS = filter(new Shot[] {
             new Shot("01_day_pathtrace", DAY, false, true, false, 0, OUTSIDE, OUTSIDE_T),
@@ -167,6 +168,10 @@ final class AutoShot {
             new Shot("70_day_clouds_vanilla", DAY, false, false, false, 0, CLOUDS, CLOUDS_T),
             new Shot("71_day_clouds_debug_mask", DAY, false, true, false, 6, CLOUDS, CLOUDS_T),
             new Shot("72_day_clouds_debug_scene", DAY, false, true, false, 7, CLOUDS, CLOUDS_T),
+            new Shot("73_hallway_pathtrace", NIGHT, false, true, false, 0, HALLWAY, HALLWAY_T),
+            new Shot("74_hallway_vanilla", NIGHT, false, false, false, 0, HALLWAY, HALLWAY_T),
+            new Shot("75_hallway_debug_direct", NIGHT, false, true, false, 1, HALLWAY, HALLWAY_T),
+            new Shot("76_hallway_debug_bounce", NIGHT, false, true, false, 2, HALLWAY, HALLWAY_T),
     });
 
     private static Shot[] filter(Shot[] all) {
@@ -351,6 +356,16 @@ final class AutoShot {
         set(w, b, 43, 1, 2, Blocks.AIR.getDefaultState());
         for (int y = 0; y <= 3; y++) set(w, b, 45, y, 5, Blocks.STONEBRICK.getDefaultState());
         buildHall(w, b);
+        // a 7-wide hallway, glowstone in both walls at floor level and higher up
+        for (int x = 120; x <= 128; x++)
+            for (int z = 0; z <= 44; z++)
+                for (int y = -1; y <= 6; y++) {
+                    boolean wall = x == 120 || x == 128 || y == 6 || y == -1 || z == 44;
+                    if (!wall) { set(w, b, x, y, z, Blocks.AIR.getDefaultState()); continue; }
+                    boolean glow = (x == 120 || x == 128) && (y == 0 || y == 3) && (z % 4 == (y == 0 ? 1 : 3));
+                    set(w, b, x, y, z, glow ? Blocks.GLOWSTONE.getDefaultState()
+                            : y == -1 ? Blocks.PLANKS.getDefaultState() : Blocks.STONEBRICK.getDefaultState());
+                }
         // far away: a torch with a pillar next to it
         set(w, b, -8, 0, 80, Blocks.TORCH.getDefaultState());
         for (int y = 0; y <= 2; y++) set(w, b, -6, y, 80, Blocks.COBBLESTONE.getDefaultState());
