@@ -23,7 +23,8 @@ final class LodVolume {
     private int tex = -1, coarseTex = -1;
     int extent;                       // blocks along X and Z
     int ox, oz;                       // world position of cell (0, *, 0); y origin is 0
-    private boolean built;
+    private boolean built, rebuilding;
+    private int fox, foz, rebuildPos;   // origin the CPU copy is being filled for
 
     int texture() { return tex; }
     int coarseTexture() { return coarseTex; }
@@ -31,6 +32,7 @@ final class LodVolume {
 
     void invalidate() {
         built = false;
+        rebuilding = false;
     }
 
     void update(EmitterIndex index, double cx, double cz, int renderDistanceChunks) {
@@ -39,20 +41,49 @@ final class LodVolume {
             extent = newExtent;
             allocate();
             built = false;
+            rebuilding = false;
         }
         int nox = (MathHelper.floor(cx) >> 4 << 4) - extent / 2;
         int noz = (MathHelper.floor(cz) >> 4 << 4) - extent / 2;
-        if (!built || Math.abs(nox - ox) >= 32 || Math.abs(noz - oz) >= 32) {
-            ox = nox;
-            oz = noz;
+        if (rebuilding) {
+            // moved: refill the grid for the new origin a bit per frame into the CPU copy, while the
+            // shaders keep using the old one; switch over when complete
+            long deadline = System.nanoTime() + 1_500_000L;
+            int n = extent / 16, total = n * n * 16;
+            while (rebuildPos < total && System.nanoTime() < deadline) {
+                int i = rebuildPos++;
+                int sy = i % 16, sz = (i / 16) % n, sx = i / 16 / n;
+                fillSection(index, (fox >> 4) + sx, sy, (foz >> 4) + sz);
+            }
+            if (rebuildPos >= total) {
+                uploadBox(bits, tex, 0, 0, 0, extent / 8, HEIGHT, extent, extent / 8, HEIGHT);
+                uploadBox(coarse, coarseTex, 0, 0, 0, extent / 8, HEIGHT / 8, extent / 8, extent / 8, HEIGHT / 8);
+                ox = fox;
+                oz = foz;
+                rebuilding = false;
+            }
+            return;
+        }
+        if (!built) {
+            ox = fox = nox;
+            oz = foz = noz;
             rebuildAll(index);
             built = true;
             while (index.pollChangedOccupancy() != null) { /* all included */ }
             return;
         }
+        if (Math.abs(nox - ox) >= 32 || Math.abs(noz - oz) >= 32) {
+            fox = nox;
+            foz = noz;
+            rebuilding = true;
+            rebuildPos = 0;
+            while (index.pollChangedOccupancy() != null) { /* the refill reads everything fresh */ }
+            return;
+        }
         int budget = 256;
+        long deadline = System.nanoTime() + 1_000_000L;
         Long k;
-        while (budget-- > 0 && (k = index.pollChangedOccupancy()) != null) {
+        while (budget-- > 0 && System.nanoTime() < deadline && (k = index.pollChangedOccupancy()) != null) {
             BlockPos s = BlockPos.fromLong(k);
             if (fillSection(index, s.getX(), s.getY(), s.getZ())) upload(s.getX(), s.getY(), s.getZ());
         }
@@ -70,7 +101,7 @@ final class LodVolume {
     private void rebuildAll(EmitterIndex index) {
         for (int i = 0; i < bits.capacity(); i++) bits.put(i, (byte) 0);
         for (int i = 0; i < coarse.capacity(); i++) coarse.put(i, (byte) 0);
-        int sx0 = ox >> 4, sz0 = oz >> 4, n = extent / 16;
+        int sx0 = fox >> 4, sz0 = foz >> 4, n = extent / 16;
         for (int sx = sx0; sx < sx0 + n; sx++)
             for (int sz = sz0; sz < sz0 + n; sz++)
                 for (int sy = 0; sy < 16; sy++) fillSection(index, sx, sy, sz);
@@ -80,7 +111,7 @@ final class LodVolume {
 
     /** Copy one 16^3 section into the grids. Returns false if it's outside the grid. */
     private boolean fillSection(EmitterIndex index, int sx, int sy, int sz) {
-        int bx = (sx << 4) - ox, by = sy << 4, bz = (sz << 4) - oz;
+        int bx = (sx << 4) - fox, by = sy << 4, bz = (sz << 4) - foz;
         if (bx < 0 || bz < 0 || bx >= extent || bz >= extent || by >= HEIGHT) return false;
         long[] mask = index.occupancy(sx, sy, sz);
         int rowBytes = extent / 8;

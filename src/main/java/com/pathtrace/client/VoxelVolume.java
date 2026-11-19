@@ -164,8 +164,11 @@ final class VoxelVolume {
     }
 
     private void stepScroll() {
-        int budget = Math.max(1, PTConfig.rebuildSlicesPerFrame / 4);   // 128x128 slices per frame
-        while (budget-- > 0 && scrollFrom < scrollTo) {
+        // slices of 128x128 blocks: at least one per frame, then as many as fit in ~2 ms
+        long deadline = System.nanoTime() + 2_000_000L;
+        boolean first = true;
+        while (scrollFrom < scrollTo && (first || System.nanoTime() < deadline)) {
+            first = false;
             int s = scrollFrom++;
             // one 1-thick slab at world coordinate s on the scroll axis, across the window on the others
             int x0 = ox, y0 = oy, z0 = oz, w = N, h = N, d = N;
@@ -193,24 +196,40 @@ final class VoxelVolume {
 
     // ------------------------------------------------------------------ filling
 
+    private final java.util.HashMap<Long, int[]> sectionBoxes = new java.util.HashMap<>();
+
     private void processDirty() {
+        // single changed blocks (water/lava flowing, leaves, crops... can be hundreds per frame):
+        // refill each, but upload once per 16^3 section they touch, not once per block
         int budget = 2048;
+        long until = System.nanoTime() + 1_000_000L;
         Iterator<Long> it = dirtyBlocks.iterator();
-        while (budget-- > 0 && it.hasNext()) {
+        sectionBoxes.clear();
+        while (budget-- > 0 && it.hasNext() && System.nanoTime() < until) {
             BlockPos p = BlockPos.fromLong(it.next());
             it.remove();
             int x = p.getX() - ox, y = p.getY() - oy, z = p.getZ() - oz;
             if (x < 0 || y < 0 || z < 0 || x >= N || y >= N || z >= N) continue;
             fillVoxelWorld(p.getX(), p.getY(), p.getZ());
-            uploadWorldBox(p.getX(), p.getY(), p.getZ(), 1, 1, 1);
-            refreshCoarse(p.getX(), p.getY(), p.getZ(), 1, 1, 1);
             fillHeightWorld(p.getX(), p.getZ());
+            long key = new BlockPos(p.getX() >> 4, p.getY() >> 4, p.getZ() >> 4).toLong();
+            int[] b = sectionBoxes.get(key);
+            if (b == null) sectionBoxes.put(key, new int[]{p.getX(), p.getY(), p.getZ(), p.getX(), p.getY(), p.getZ()});
+            else {
+                b[0] = Math.min(b[0], p.getX()); b[1] = Math.min(b[1], p.getY()); b[2] = Math.min(b[2], p.getZ());
+                b[3] = Math.max(b[3], p.getX()); b[4] = Math.max(b[4], p.getY()); b[5] = Math.max(b[5], p.getZ());
+            }
+        }
+        for (int[] b : sectionBoxes.values()) {
+            uploadWorldBox(b[0], b[1], b[2], b[3] - b[0] + 1, b[4] - b[1] + 1, b[5] - b[2] + 1);
+            refreshCoarse(b[0], b[1], b[2], b[3] - b[0] + 1, b[4] - b[1] + 1, b[5] - b[2] + 1);
         }
 
         // changed areas (chunk loads arrive as whole 16x256x16 columns): at most ~8k blocks per frame,
         // big boxes are split into horizontal layers so a chunk load never costs one long frame
         int blockBudget = 8192;
-        while (blockBudget > 0 && !dirtyBoxes.isEmpty()) {
+        long deadline = System.nanoTime() + 1_500_000L;
+        while (blockBudget > 0 && !dirtyBoxes.isEmpty() && System.nanoTime() < deadline) {
             int[] b = dirtyBoxes.peek();
             int x0 = Math.max(ox, b[0]), x1 = Math.min(ox + N - 1, b[3]);
             int y0 = Math.max(oy, b[1]), y1 = Math.min(oy + N - 1, b[4]);
