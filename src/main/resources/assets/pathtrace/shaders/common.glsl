@@ -375,6 +375,8 @@ vec4 g_topP0, g_topP1, g_topP2, g_topP3;
 vec3 g_topB0, g_topB1, g_topB2, g_topB3;   // the light's own block (its hits don't shadow it)
 vec3 g_topC0, g_topC1, g_topC2, g_topC3;
 float g_topW0, g_topW1, g_topW2, g_topW3;
+float g_topI0, g_topI1, g_topI2, g_topI3;   // their indices: >= 0 light list, -2 - i dynamic light i
+float g_curIdx = -1.0;                      // index of the light being visited
 vec3 g_ownCell;
 vec3 g_glow;
 bool g_wantTop = false;
@@ -487,8 +489,6 @@ void visitLight(vec4 lp, vec4 lcw, vec3 p, vec3 n) {
 }
 
 float g_visited;   // lights the cell list gave us (debug)
-float g_curIdx = -1.0;   // index of the light being visited: >= 0 light list, -2 - i dynamic light i
-float g_topI0, g_topI1, g_topI2, g_topI3;
 vec3 g_resid;      // light added back for lights that didn't fit in the cell's list
 vec4 residAt(float t) {
     return texture2D(residTex, (vec2(mod(t, cellTexSize.x), floor(t / cellTexSize.x)) + 0.5) / vec2(cellTexSize.x, residTexH));
