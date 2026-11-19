@@ -16,7 +16,7 @@ import org.apache.logging.log4j.Logger;
 public class PathTraceMod {
     public static final String MODID = "pathtrace";
     public static final String NAME = "PathTrace";
-    public static final String VERSION = "0.4.1";
+    public static final String VERSION = "0.4.2";
     public static final Logger LOG = LogManager.getLogger(NAME);
 
     @Mod.EventHandler
