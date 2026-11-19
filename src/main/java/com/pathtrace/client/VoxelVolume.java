@@ -315,9 +315,9 @@ final class VoxelVolume {
             if (m == Material.WATER) {
                 // water: lets light through but absorbs some per block, more red than blue, so the
                 // bottom of a lake or the sea is dimmer and bluer the deeper it is (A = 96: "absorber")
-                voxels.put(idx, (byte) 205);     // linear 0.62, 0.78, 0.90 per block
-                voxels.put(idx + 1, (byte) 228);
-                voxels.put(idx + 2, (byte) 243);
+                voxels.put(idx, (byte) 230);     // linear 0.80, 0.90, 0.96 per block
+                voxels.put(idx + 1, (byte) 243);
+                voxels.put(idx + 2, (byte) 250);
                 voxels.put(idx + 3, (byte) 96);
                 shapeIds.putInt(idx, 0);
                 return;

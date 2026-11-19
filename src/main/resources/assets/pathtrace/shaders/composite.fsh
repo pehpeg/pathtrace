@@ -123,7 +123,7 @@ void main() {
     // scattered in the water itself (so deep water is a dim, even blue rather than a lit sea bed)
     float wpath = texture2D(waterTex, uv).r;
     if (wpath > 0.0) {
-        vec3 T = pow(vec3(0.62, 0.78, 0.90), vec3(wpath));
+        vec3 T = pow(vec3(0.80, 0.90, 0.96), vec3(wpath));
         vec3 scatter = (skyColor * 0.9 + lightColor * 0.25) * vec3(0.35, 0.6, 0.85);
         ind = ind * T + scatter * (1.0 - T);
         dir = dir * T;

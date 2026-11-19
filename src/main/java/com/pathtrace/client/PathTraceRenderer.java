@@ -53,6 +53,8 @@ final class PathTraceRenderer {
     private final LodVolume lod = new LodVolume();
 
     private ShaderProgram bloomPreSh, bloomDownSh, bloomUpSh, gbufferSh, traceSh, atrousSh, directSh, compositeSh, probeSh, handSh, lumSh, exposureSh;
+    private ShaderProgram directAccSh;
+    private final RenderTarget[] directAcc = new RenderTarget[2];
     private boolean shaderFailed;
 
     private int width = -1, height = -1, traceW = -1, traceH = -1;
@@ -245,8 +247,40 @@ final class PathTraceRenderer {
         directSh.set("shadowedLights", PTConfig.shadowedLights);
         directSh.set("debugView", PTConfig.debugView);
         directSh.set("pixelShadows", PTConfig.pixelShadows ? 1f : 0f);
+        // sub-pixel jitter (Halton 2,3), smoothed over frames by the accumulation below
+        float jx = 0f, jy = 0f;
+        if (PTConfig.temporalShadows) {
+            int f = (int) (frame % 16) + 1;
+            jx = (halton(f, 2) - 0.5f) / directW;
+            jy = (halton(f, 3) - 0.5f) / directH;
+        }
+        directSh.set("jitter", jx, jy);
         drawQuad();
         int dirTex = direct.tex[0];
+        if (PTConfig.temporalShadows) {
+            directAcc[cur].bind();
+            directAccSh.use();
+            setCommon(directAccSh);
+            bind2D(0, direct.tex[0]);
+            directAccSh.set("curDirect", 0);
+            bind2D(2, directAcc[prev].tex[0]);
+            directAccSh.set("histDirect", 2);
+            bind2D(3, accum[prev].tex[1]);
+            directAccSh.set("histGeom", 3);
+            bind2D(4, gbuffer.tex[0]);
+            directAccSh.set("gbufferTex", 4);
+            directAccSh.setMatrix("invProj", invProj);
+            directAccSh.setMatrix("invView", invView);
+            directAccSh.setMatrix("prevProj", prevProj);
+            directAccSh.setMatrix("prevView", prevView);
+            directAccSh.set("prevCamPos", pcx, pcy, pcz);
+            directAccSh.set("prevEye", pcx + prevEyeRel[0], pcy + prevEyeRel[1], pcz + prevEyeRel[2]);
+            directAccSh.set("hasHistory", hasHistory ? 1f : 0f);
+            directAccSh.set("directRes", (float) directW, (float) directH);
+            directAccSh.set("blend", 0.2f);
+            drawQuad();
+            dirTex = directAcc[cur].tex[0];
+        }
         perf.mark("direct");
         // 3. trace
         accum[cur].bind();
@@ -361,6 +395,9 @@ final class PathTraceRenderer {
             bind2D(3, expo[prev].tex[0]);
             exposureSh.set("lumTex", 2);
             exposureSh.set("prevExposure", 3);
+            bind2D(4, probe[cur].tex[0]);
+            exposureSh.set("probeTex", 4);
+            exposureSh.set("lightColor", lightColor);
             exposureSh.set("adapt", 1f - (float) Math.exp(-dt * 1.5f));
             exposureSh.set("hasHistory", hasHistory ? 1f : 0f);
             drawQuad();
@@ -616,6 +653,7 @@ final class PathTraceRenderer {
             handSh = ShaderProgram.load(VSH, "hand.fsh");
             lumSh = ShaderProgram.load(VSH, "lum.fsh");
             exposureSh = ShaderProgram.load(VSH, "exposure.fsh");
+            directAccSh = ShaderProgram.load(VSH, "direct_accum.fsh");
             return true;
         } catch (Exception e) {
             PathTraceMod.LOG.error("PathTrace shaders failed to load", e);
@@ -627,10 +665,10 @@ final class PathTraceRenderer {
     }
 
     private void deleteShaders() {
-        for (ShaderProgram s : new ShaderProgram[]{bloomPreSh, bloomDownSh, bloomUpSh, gbufferSh, traceSh, atrousSh, directSh, compositeSh, probeSh, handSh, lumSh, exposureSh}) {
+        for (ShaderProgram s : new ShaderProgram[]{bloomPreSh, bloomDownSh, bloomUpSh, gbufferSh, traceSh, atrousSh, directSh, compositeSh, probeSh, handSh, lumSh, exposureSh, directAccSh}) {
             if (s != null) s.delete();
         }
-        bloomPreSh = bloomDownSh = bloomUpSh = gbufferSh = traceSh = atrousSh = directSh = compositeSh = probeSh = handSh = lumSh = exposureSh = null;
+        bloomPreSh = bloomDownSh = bloomUpSh = gbufferSh = traceSh = atrousSh = directSh = compositeSh = probeSh = handSh = lumSh = exposureSh = directAccSh = null;
     }
 
     private void ensureTargets(int w, int h) {
@@ -652,6 +690,7 @@ final class PathTraceRenderer {
             expo[i] = new RenderTarget(1, 1, 1, GL11.GL_NEAREST);
         }
         direct = new RenderTarget(dw, dh, 3, GL11.GL_NEAREST, GL30.GL_RGBA32F);   // light + glow, shadowed light ids, crowding
+        for (int i = 0; i < 2; i++) directAcc[i] = new RenderTarget(dw, dh, 1, GL11.GL_NEAREST);
         gbuffer = new RenderTarget(w, h, 2, GL11.GL_NEAREST, GL30.GL_RGBA32F);   // 32-bit: distance must be exact
         for (int i = 0; i < BLOOM_LEVELS; i++) {
             int bw = Math.max(1, w >> (i + 1)), bh = Math.max(1, h >> (i + 1));
@@ -678,6 +717,10 @@ final class PathTraceRenderer {
         }
         if (lum != null) lum.delete();
         if (direct != null) direct.delete();
+        for (int i = 0; i < 2; i++) {
+            if (directAcc[i] != null) directAcc[i].delete();
+            directAcc[i] = null;
+        }
         if (gbuffer != null) gbuffer.delete();
         for (int i = 0; i < BLOOM_LEVELS; i++) {
             if (bloomDown[i] != null) bloomDown[i].delete();
@@ -776,5 +819,15 @@ final class PathTraceRenderer {
         dst.put(src);
         dst.rewind();
         src.rewind();
+    }
+
+    private static float halton(int i, int b) {
+        float f = 1f, r = 0f;
+        while (i > 0) {
+            f /= b;
+            r += f * (i % b);
+            i /= b;
+        }
+        return r;
     }
 }

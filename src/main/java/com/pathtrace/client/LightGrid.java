@@ -84,6 +84,7 @@ final class LightGrid {
         int lightCount;
         float[] lx, ly, lz, lbx, lby, lbz, lreach;
         int[] llight, lcolor, loffset, lfaces;
+        java.util.HashMap<Long, long[]> solid;   // section solid masks around the grid (for residual shadows)
         int cellTexH, residTexH;
         FloatBuffer lightBuf, cellBuf, residBuf;
         volatile boolean done;
@@ -128,6 +129,7 @@ final class LightGrid {
         j.version = emitters.version;
         j.strength = PTConfig.pointLightStrength;
         collect(j, emitters, cx, cy, cz);
+        j.solid = emitters.snapshotOccupancy(j.ox - 16, j.oz - 16, j.ox + j.gx * CELL + 16, j.oz + j.gz * CELL + 16);
         int cells = j.gx * j.gy * j.gz;
         j.cellTexH = (cells * (K / 4) + CELL_TEX_W - 1) / CELL_TEX_W;
         j.residTexH = (cells * 8 + CELL_TEX_W - 1) / CELL_TEX_W;
@@ -268,6 +270,10 @@ final class LightGrid {
                             float dx = px - lx[i], dy = py - ly[i], dz = pz - lz[i];
                             float d2 = dx * dx + dy * dy + dz * dz;
                             if (d2 >= r * r) continue;
+                            // this light is added back without per-pixel shadows, so at least check that
+                            // nothing solid is between it and the corner (lava under the ground glowing
+                            // through it otherwise). Corners are shared by neighbouring cells: stays smooth.
+                            if (blocked(j, lx[i], ly[i], lz[i], j.lbx[i], j.lby[i], j.lbz[i], px, py, pz)) continue;
                             float d = (float) Math.sqrt(d2);
                             float x = Math.max(0f, 1f - d / r);
                             float f = k * x * x / (1f + FALLOFF * d2);
@@ -357,6 +363,35 @@ final class LightGrid {
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
         GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL30.GL_RGBA32F, w, h, 0, GL11.GL_RGBA, GL11.GL_FLOAT, (ByteBuffer) null);
         return id;
+    }
+
+    /** Is any solid block between light point (lx..) and point (px..)? (grid-local coordinates; the light's own block doesn't count) */
+    private static boolean blocked(Job j, float lx, float ly, float lz, float bx, float by, float bz, float px, float py, float pz) {
+        int ownX = (int) Math.floor(bx), ownY = (int) Math.floor(by), ownZ = (int) Math.floor(bz);
+        float dx = px - lx, dy = py - ly, dz = pz - lz;
+        float len = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (len < 1e-3f) return false;
+        dx /= len; dy /= len; dz /= len;
+        int x = (int) Math.floor(lx), y = (int) Math.floor(ly), z = (int) Math.floor(lz);
+        int sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1, sz = dz > 0 ? 1 : -1;
+        float tdx = Math.abs(1f / (Math.abs(dx) < 1e-6f ? 1e-6f : dx)), tdy = Math.abs(1f / (Math.abs(dy) < 1e-6f ? 1e-6f : dy)), tdz = Math.abs(1f / (Math.abs(dz) < 1e-6f ? 1e-6f : dz));
+        float tx = (dx > 0 ? (x + 1 - lx) : (lx - x)) * tdx, ty = (dy > 0 ? (y + 1 - ly) : (ly - y)) * tdy, tz = (dz > 0 ? (z + 1 - lz) : (lz - z)) * tdz;
+        float t = 0;
+        for (int step = 0; step < 64 && t < len - 0.5f; step++) {
+            if (!(x == ownX && y == ownY && z == ownZ) && solidAt(j, x + j.ox, y + j.oy, z + j.oz)) return true;
+            if (tx < ty && tx < tz) { x += sx; t = tx; tx += tdx; }
+            else if (ty < tz) { y += sy; t = ty; ty += tdy; }
+            else { z += sz; t = tz; tz += tdz; }
+        }
+        return false;
+    }
+
+    private static boolean solidAt(Job j, int wx, int wy, int wz) {
+        if (wy < 0 || wy > 255 || j.solid == null) return false;
+        long[] m = j.solid.get(EmitterIndex.key(wx >> 4, wy >> 4, wz >> 4));
+        if (m == null) return false;
+        int bit = ((wy & 15) * 16 + (wz & 15)) * 16 + (wx & 15);
+        return (m[bit >> 6] & (1L << (bit & 63))) != 0;
     }
 
     /**

@@ -35,16 +35,19 @@ vec3 slot(float w, vec4 lp, vec3 c, vec3 blk, vec3 origin) {
     return c * lightVisible(origin, lightTarget(origin, lp, blk, vec3(0.0)), blk);
 }
 
+uniform vec2 jitter;   // this frame's sample position inside the pixel, in UV units (0 = centre)
+
 void main() {
-    if (texture2D(gbufferTex, uv).w <= 0.0) {
+    vec2 juv = uv + jitter;
+    if (texture2D(gbufferTex, juv).w <= 0.0) {
         gl_FragData[0] = vec4(0.0);
         gl_FragData[1] = vec4(-1.0);
         gl_FragData[2] = vec4(0.0);
         return;
     }
-    vec4 gb = texture2D(gbufferTex, uv);
+    vec4 gb = texture2D(gbufferTex, juv);
     vec3 eye = eyeRel();
-    vec3 viewDir = viewRayDir(uv);
+    vec3 viewDir = viewRayDir(juv);
     float dist = gb.w;
     vec3 rel = eye + viewDir * dist;
     vec3 P = rel + camPos;

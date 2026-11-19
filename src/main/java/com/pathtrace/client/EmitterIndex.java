@@ -183,6 +183,19 @@ final class EmitterIndex {
     }
 
     /** 4096-bit solid mask of a section, or null if it has nothing solid. Bit index (y*16+z)*16+x. */
+    /** Solid masks of the sections in a block range, for use off the render thread (masks are never modified, only replaced). */
+    java.util.HashMap<Long, long[]> snapshotOccupancy(int x1, int z1, int x2, int z2) {
+        java.util.HashMap<Long, long[]> m = new java.util.HashMap<>();
+        for (int sx = x1 >> 4; sx <= x2 >> 4; sx++)
+            for (int sz = z1 >> 4; sz <= z2 >> 4; sz++)
+                for (int sy = 0; sy < 16; sy++) {
+                    long k = key(sx, sy, sz);
+                    long[] v = occupancy.get(k);
+                    if (v != null) m.put(k, v);
+                }
+        return m;
+    }
+
     long[] occupancy(int sx, int sy, int sz) {
         return occupancy.get(key(sx, sy, sz));
     }
