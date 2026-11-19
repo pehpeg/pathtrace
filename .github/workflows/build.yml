@@ -89,6 +89,12 @@ jobs:
           timeout 2400 xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew runClient -Pautoshot --no-daemon > out/gradle.log 2>&1 || echo "game exited with $?"
           cp run/screenshots/*.png out/ 2>/dev/null || true
           cp run/logs/latest.log out/ 2>/dev/null || true
+          # second run: fly across a normally generated world and measure stutter
+          rm -f run/screenshots/*.png
+          timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew runClient -Pautoshot=terrain --no-daemon > out/gradle_terrain.log 2>&1 || echo "terrain run exited with $?"
+          cp run/screenshots/*.png out/ 2>/dev/null || true
+          cp run/logs/latest.log out/terrain.log 2>/dev/null || true
+          grep "\[terrain\]" out/terrain.log || true
           tail -n 30 out/gradle.log
           ls -la out
 

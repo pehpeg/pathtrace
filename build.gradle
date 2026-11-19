@@ -32,6 +32,7 @@ tasks.withType(JavaCompile).configureEach {
 if (project.hasProperty('autoshot')) {
     tasks.named('runClient') {
         jvmArgs '-Dpathtrace.autoshot=true', '-Dfml.noGrab=true'
+        if (project.property('autoshot') == 'terrain') jvmArgs '-Dpathtrace.autoshot.mode=terrain'
         args '--width', '1280', '--height', '720'
     }
 }

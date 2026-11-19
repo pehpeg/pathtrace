@@ -176,9 +176,11 @@ final class PathTraceRenderer {
         float dt = lastNanos == 0 ? 0.016f : MathHelper.clamp((now - lastNanos) / 1.0e9f, 0f, 0.25f);
         lastNanos = now;
 
-        perf.cpuBegin("lights");
+        perf.cpuBegin("emitters");
         lights.collect(world, cam, pt, volume, cx, cy, cz, mc.gameSettings.thirdPersonView == 0);
         emitters.process(world, 96);
+        perf.cpuEnd();
+        perf.cpuBegin("lightgrid");
         lightGrid.update(emitters, cx, cy, cz, mc.gameSettings.renderDistanceChunks);
         perf.cpuEnd();
         perf.cpuBegin("lod");

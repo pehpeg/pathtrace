@@ -32,7 +32,10 @@ public final class ClientHandler {
         ClientRegistry.registerKeyBinding(RELOAD);
         MinecraftForge.EVENT_BUS.register(new ClientHandler());
         net.minecraftforge.client.ClientCommandHandler.instance.registerCommand(new PathTraceCommand());
-        if (AutoShot.requested()) {
+        if (TerrainRun.requested()) {
+            PathTraceMod.LOG.info("PathTrace terrain test mode enabled");
+            MinecraftForge.EVENT_BUS.register(new TerrainRun());
+        } else if (AutoShot.requested()) {
             PathTraceMod.LOG.info("PathTrace autoshot test mode enabled");
             MinecraftForge.EVENT_BUS.register(new AutoShot());
         }

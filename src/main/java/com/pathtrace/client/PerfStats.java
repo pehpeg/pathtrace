@@ -88,9 +88,12 @@ final class PerfStats {
         cpuName = null;
     }
 
+    // per entry: {average (exponential, ~20 frames), worst since reset, frames over 4 ms since reset}
     private static void add(Map<String, double[]> m, String k, double ms) {
-        double[] a = m.computeIfAbsent(k, x -> new double[]{ms});
-        a[0] += (ms - a[0]) * 0.05;   // exponential average over ~20 frames
+        double[] a = m.computeIfAbsent(k, x -> new double[]{ms, 0, 0});
+        a[0] += (ms - a[0]) * 0.05;
+        a[1] = Math.max(a[1], ms);
+        if (ms > 4.0) a[2]++;
     }
 
     String report() {
@@ -111,7 +114,10 @@ final class PerfStats {
             sb.append(' ').append(e.getKey()).append(' ').append(String.format("%.2f", e.getValue()[0]));
             ct += e.getValue()[0];
         }
-        sb.append(String.format(" | total %.2f", ct));
+        sb.append(String.format(" | total %.2f\n", ct));
+        sb.append("CPU worst frame (ms) / frames over 4 ms:");
+        for (Map.Entry<String, double[]> e : cpuAvg.entrySet())
+            sb.append(' ').append(e.getKey()).append(' ').append(String.format("%.1f/%d", e.getValue()[1], (int) e.getValue()[2]));
         return sb.toString();
     }
 
